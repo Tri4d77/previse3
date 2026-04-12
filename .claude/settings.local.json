@@ -28,7 +28,8 @@
       "Bash(/c/laragon/bin/php/php-8.4.12-nts-Win32-vs17-x64/php.exe vendor/bin/pest)",
       "Bash(/c/laragon/bin/php/php-8.4.12-nts-Win32-vs17-x64/php.exe /c/laragon/bin/composer/composer.phar install:api)",
       "Bash(git credential-manager:*)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "Bash(git config:*)"
     ]
   }
 }
