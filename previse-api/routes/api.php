@@ -1,16 +1,14 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes - Previse v2
 |--------------------------------------------------------------------------
-|
-| Prefix: /api/v1/
-| Minden route automatikusan a v1 prefix alá kerül.
-|
 */
 
 // Health check (publikus)
@@ -23,19 +21,38 @@ Route::get('/v1/health', function () {
     ]);
 });
 
-// Auth routes (publikus) - Fázis 1-ben implementáljuk
+// ========== AUTH ROUTES (publikus) ==========
 Route::prefix('v1/auth')->group(function () {
-    // POST /api/v1/auth/login
-    // POST /api/v1/auth/logout
-    // POST /api/v1/auth/forgot-password
-    // POST /api/v1/auth/reset-password
-    // POST /api/v1/auth/accept-invitation
+    Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('auth.forgot-password');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('auth.reset-password');
+    Route::post('/accept-invitation', [AuthController::class, 'acceptInvitation'])->name('auth.accept-invitation');
+    Route::get('/invitation/{token}', [AuthController::class, 'invitationInfo'])->name('auth.invitation-info');
 });
 
-// Védett route-ok (auth:sanctum) - Fázisonként bővítjük
+// ========== VÉDETT ROUTES (auth:sanctum) ==========
 Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
-    // Bejelentkezett felhasználó
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
+
+    // --- Auth ---
+    Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
+    Route::post('/auth/logout-all', [AuthController::class, 'logoutAll'])->name('auth.logout-all');
+    Route::get('/auth/user', [AuthController::class, 'user'])->name('auth.user');
+
+    // --- Felhasználók ---
+    Route::get('/users', [UserController::class, 'index']);
+    Route::post('/users', [UserController::class, 'store']);
+    Route::get('/users/{user}', [UserController::class, 'show']);
+    Route::put('/users/{user}', [UserController::class, 'update']);
+    Route::patch('/users/{user}/toggle-active', [UserController::class, 'toggleActive']);
+    Route::delete('/users/{user}', [UserController::class, 'destroy']);
+
+    // --- Szerepkörök ---
+    Route::get('/roles', [RoleController::class, 'index']);
+    Route::post('/roles', [RoleController::class, 'store']);
+    Route::put('/roles/{role}/permissions', [RoleController::class, 'updatePermissions']);
+    Route::delete('/roles/{role}', [RoleController::class, 'destroy']);
+
+    // --- Engedélyek (a mátrix felépítéséhez) ---
+    Route::get('/permissions', [RoleController::class, 'permissions']);
+
 });

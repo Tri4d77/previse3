@@ -18,7 +18,7 @@ test('health endpoint returns ok status', function () {
 });
 
 test('protected routes return 401 without auth', function () {
-    $response = $this->getJson('/api/v1/user');
+    $response = $this->getJson('/api/v1/auth/user');
 
     $response->assertStatus(401);
 });

@@ -1,0 +1,36 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class UserSetting extends Model
+{
+    protected $fillable = [
+        'user_id',
+        'theme',
+        'color_scheme',
+        'locale',
+        'timezone',
+        'items_per_page',
+        'default_page',
+        'notification_email',
+        'notification_push',
+        'notification_sound',
+    ];
+
+    protected $casts = [
+        'items_per_page' => 'integer',
+        'notification_email' => 'boolean',
+        'notification_push' => 'boolean',
+        'notification_sound' => 'boolean',
+    ];
+
+    // ========== KAPCSOLATOK ==========
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+}

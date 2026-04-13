@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="hu" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Previse - Kétfaktoros hitelesítés</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4', 300: '#5eead4', 400: '#2dd4bf', 500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a' },
+                    }
+                }
+            }
+        }
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        }
+        if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .login-bg { background: linear-gradient(135deg, #134e4a 0%, #0d9488 50%, #14b8a6 100%); }
+        .dark .login-bg { background: linear-gradient(135deg, #0f172a 0%, #115e59 50%, #134e4a 100%); }
+        /* OTP input stílus */
+        .otp-input {
+            width: 48px; height: 56px;
+            text-align: center; font-size: 1.5rem; font-weight: 700;
+            caret-color: #0d9488;
+        }
+        .otp-input:focus { border-color: #0d9488; box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.3); }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen transition-colors duration-300">
+
+    <button onclick="toggleTheme()" class="fixed top-4 right-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg">
+        <svg class="w-5 h-5 text-amber-500 hidden dark:block" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>
+        <svg class="w-5 h-5 text-gray-600 block dark:hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+    </button>
+
+    <div class="min-h-screen flex">
+        <!-- Bal oldal -->
+        <div class="hidden lg:flex lg:w-1/2 login-bg relative overflow-hidden items-center justify-center">
+            <div class="relative z-10 text-center px-12">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-2xl backdrop-blur-sm mb-6">
+                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                </div>
+                <h1 class="text-4xl font-bold text-white mb-4">Previse</h1>
+                <p class="text-xl text-teal-100">Bejelentés- és feladatkezelő rendszer</p>
+            </div>
+            <div class="absolute top-20 left-10 w-72 h-72 bg-white/5 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-20 right-10 w-96 h-96 bg-teal-400/10 rounded-full blur-3xl"></div>
+        </div>
+
+        <!-- Jobb oldal -->
+        <div class="w-full lg:w-1/2 flex items-center justify-center p-8">
+            <div class="w-full max-w-md">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700">
+
+                    <div class="text-center mb-6">
+                        <div class="inline-flex items-center justify-center w-14 h-14 bg-primary-100 dark:bg-primary-900/30 rounded-full mb-4">
+                            <svg class="w-7 h-7 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            </svg>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Kétfaktoros hitelesítés</h2>
+                        <p class="text-gray-500 dark:text-gray-400 mt-2 text-sm">Írd be a hitelesítő alkalmazásban megjelenő 6 jegyű kódot.</p>
+                    </div>
+
+                    <form class="space-y-6">
+                        <!-- 6 jegyű OTP kód input -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 text-center">Ellenőrző kód</label>
+                            <div class="flex justify-center gap-2 sm:gap-3">
+                                <input type="text" maxlength="1" class="otp-input border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none transition-colors" value="4">
+                                <input type="text" maxlength="1" class="otp-input border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none transition-colors" value="8">
+                                <input type="text" maxlength="1" class="otp-input border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none transition-colors" value="2">
+                                <input type="text" maxlength="1" class="otp-input border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none transition-colors">
+                                <input type="text" maxlength="1" class="otp-input border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none transition-colors">
+                                <input type="text" maxlength="1" class="otp-input border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none transition-colors">
+                            </div>
+                        </div>
+
+                        <button type="submit"
+                            class="w-full py-2.5 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg shadow-sm hover:shadow-md focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800 transition-all duration-200 text-sm">
+                            Ellenőrzés
+                        </button>
+                    </form>
+
+                    <!-- Hiba üzenet minta -->
+                    <div class="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hidden">
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 text-red-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            <span class="text-sm text-red-700 dark:text-red-400">Érvénytelen kód. Kérjük próbáld újra.</span>
+                        </div>
+                    </div>
+
+                    <!-- Segítség szekció -->
+                    <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Nem éred el a hitelesítő alkalmazást?</p>
+                        <a href="#" class="text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 font-medium">
+                            Tartalék kód használata
+                        </a>
+                    </div>
+
+                    <div class="mt-5 text-center">
+                        <a href="login.html" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 inline-flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                            </svg>
+                            Vissza a bejelentkezéshez
+                        </a>
+                    </div>
+                </div>
+
+                <p class="text-center text-xs text-gray-400 dark:text-gray-500 mt-6">&copy; 2026 Previse. Minden jog fenntartva.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // OTP input auto-focus a következő mezőre gépeléskor
+        document.querySelectorAll('.otp-input').forEach((input, index, inputs) => {
+            input.addEventListener('input', (e) => {
+                if (e.target.value.length === 1 && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -12,7 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'permission' => \App\Http\Middleware\CheckPermission::class,
+            'org.type' => \App\Http\Middleware\CheckOrganizationType::class,
+        ]);
+
+        // Sanctum stateful middleware az API-hoz (SPA mód)
+        $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
