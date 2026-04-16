@@ -1,0 +1,78 @@
+services:
+  # ========== PHP 8.4 + Laravel ==========
+  app:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    container_name: previse-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./previse-api:/var/www/html
+    networks:
+      - previse
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ========== Nginx ==========
+  nginx:
+    image: nginx:alpine
+    container_name: previse-nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./previse-api:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - previse
+    depends_on:
+      - app
+
+  # ========== MySQL 8 ==========
+  mysql:
+    image: mysql:8.0
+    container_name: previse-mysql
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: previse
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: previse
+      MYSQL_PASSWORD: previse
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - previse
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ========== phpMyAdmin (opcionális, DB kezeléshez) ==========
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: previse-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: root
+      UPLOAD_LIMIT: 64M
+    networks:
+      - previse
+    depends_on:
+      - mysql
+
+networks:
+  previse:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
