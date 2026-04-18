@@ -109,6 +109,31 @@ class AuthController extends Controller
     }
 
     /**
+     * POST /api/v1/auth/verify-password
+     *
+     * Jelenlegi felhasználó jelszavának ellenőrzése (lockscreen feloldáshoz).
+     * A felhasználó bejelentkezve marad, nem generál új tokent.
+     */
+    public function verifyPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'password' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+
+        if (! Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => [__('auth.password')],
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'OK',
+        ]);
+    }
+
+    /**
      * POST /api/v1/auth/logout
      *
      * Kijelentkezés az aktuális eszközről.

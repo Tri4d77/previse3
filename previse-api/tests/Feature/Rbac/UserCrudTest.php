@@ -46,10 +46,16 @@ test('admin meg tud hívni új felhasználót', function () {
         ->assertJsonPath('data.email', 'uj@test.hu')
         ->assertJsonPath('data.is_active', false); // Meghívó elfogadásig inaktív
 
+    // Meghívó URL megjön a válaszban
+    $invitationUrl = $response->json('invitation_url');
+    expect($invitationUrl)->toBeString();
+    expect($invitationUrl)->toContain('/invitation/');
+
     // Meghívó token generálódott
     $newUser = User::where('email', 'uj@test.hu')->first();
     expect($newUser->invitation_token)->not->toBeNull();
     expect($newUser->invitation_sent_at)->not->toBeNull();
+    expect($invitationUrl)->toContain($newUser->invitation_token);
 });
 
 test('meghívás: duplikált email-lel nem lehet', function () {
@@ -149,6 +155,70 @@ test('admin nem törölheti saját magát', function () {
 
     $response = $this->deleteJson("/api/v1/users/{$this->admin->id}");
     $response->assertForbidden();
+});
+
+test('szuper-admin minden szervezet felhasználóját látja', function () {
+    // Platform szervezet + szuper-admin
+    $platformOrg = Organization::create([
+        'type' => 'platform', 'name' => 'Platform', 'slug' => 'platform', 'is_active' => true,
+    ]);
+    $platformRole = Role::create([
+        'organization_id' => $platformOrg->id, 'name' => 'Admin', 'slug' => 'admin', 'is_system' => true,
+    ]);
+    $platformRole->permissions()->sync(Permission::pluck('id'));
+    $superAdmin = User::create([
+        'organization_id' => $platformOrg->id, 'name' => 'Super', 'email' => 'super@previse.hu',
+        'password' => 'Pass123!', 'role_id' => $platformRole->id,
+        'is_active' => true, 'email_verified_at' => now(),
+    ]);
+
+    // Másik szervezet felhasználókkal
+    $otherOrg = Organization::create([
+        'type' => 'subscriber', 'name' => 'Másik', 'slug' => 'masik', 'is_active' => true,
+    ]);
+    $otherRole = Role::create([
+        'organization_id' => $otherOrg->id, 'name' => 'Admin', 'slug' => 'admin',
+    ]);
+    User::create([
+        'organization_id' => $otherOrg->id, 'name' => 'Másik User', 'email' => 'masik@user.hu',
+        'password' => 'Pass123!', 'role_id' => $otherRole->id,
+        'is_active' => true, 'email_verified_at' => now(),
+    ]);
+
+    Sanctum::actingAs($superAdmin);
+
+    $response = $this->getJson('/api/v1/users');
+    $response->assertOk();
+
+    $emails = collect($response->json('data'))->pluck('email')->toArray();
+    expect($emails)->toContain('super@previse.hu');
+    expect($emails)->toContain('admin@test.hu'); // a beforeEach-ből az XY Kft. admin
+    expect($emails)->toContain('masik@user.hu'); // más szervezet
+});
+
+test('előfizető látja saját + ügyfél-szervezeteinek felhasználóit', function () {
+    // Ügyfél-szervezet az XY Kft. alatt
+    $clientOrg = Organization::create([
+        'parent_id' => $this->org->id,
+        'type' => 'client', 'name' => 'Ügyfél', 'slug' => 'ugyfel', 'is_active' => true,
+    ]);
+    $clientRole = Role::create([
+        'organization_id' => $clientOrg->id, 'name' => 'Képviselő', 'slug' => 'client_user',
+    ]);
+    User::create([
+        'organization_id' => $clientOrg->id, 'name' => 'Ügyfél User', 'email' => 'ugyfel@user.hu',
+        'password' => 'Pass123!', 'role_id' => $clientRole->id,
+        'is_active' => true, 'email_verified_at' => now(),
+    ]);
+
+    Sanctum::actingAs($this->admin);
+
+    $response = $this->getJson('/api/v1/users');
+    $response->assertOk();
+
+    $emails = collect($response->json('data'))->pluck('email')->toArray();
+    expect($emails)->toContain('admin@test.hu'); // saját
+    expect($emails)->toContain('ugyfel@user.hu'); // ügyfél szervezet
 });
 
 test('felhasználó lista szűrhető szerepkör szerint', function () {

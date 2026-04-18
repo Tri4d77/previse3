@@ -24,6 +24,14 @@ const router = createRouter({
       meta: { guest: true },
     },
 
+    // ========== LOCKSCREEN (bejelentkezett, de z\u00e1rolt) ==========
+    {
+      path: '/lock',
+      name: 'lock',
+      component: () => import('@/pages/auth/LockScreenPage.vue'),
+      meta: { requiresAuth: true, allowLocked: true },
+    },
+
     // ========== APP (bejelentkezett) ==========
     {
       path: '/',
@@ -71,13 +79,13 @@ const router = createRouter({
   ],
 })
 
-// Navigáció őr (auth ellenőrzés)
-router.beforeEach(async (to, from, next) => {
+// Navigáció őr
+router.beforeEach(async (to, from) => {
   const authStore = useAuthStore()
 
-  // Ha auth szükséges és nincs token
+  // Ha auth szükséges és nincs token -> login
   if (to.meta.requiresAuth && !authStore.token) {
-    return next({ name: 'login' })
+    return { name: 'login' }
   }
 
   // Ha auth szükséges, de nincs user betöltve (pl. oldal frissítés után)
@@ -86,21 +94,31 @@ router.beforeEach(async (to, from, next) => {
       await authStore.fetchUser()
     } catch {
       authStore.clearAuth()
-      return next({ name: 'login' })
+      return { name: 'login' }
     }
   }
 
+  // Ha a felhasználó zárolva van ÉS nem a lockscreen-re megy -> lockscreen
+  if (authStore.isLocked && to.name !== 'lock' && to.meta.requiresAuth) {
+    return { name: 'lock' }
+  }
+
+  // Ha NINCS zárolva, de mégis a lockscreen-re megy -> dashboard
+  if (!authStore.isLocked && to.name === 'lock' && authStore.isAuthenticated) {
+    return { name: 'dashboard' }
+  }
+
   // Ha guest oldal, de be van jelentkezve
-  if (to.meta.guest && authStore.isAuthenticated) {
-    return next({ name: 'dashboard' })
+  if (to.meta.guest && authStore.isAuthenticated && !authStore.isLocked) {
+    return { name: 'dashboard' }
   }
 
   // Jogosultság ellenőrzés
   if (to.meta.permission && !authStore.hasPermission(to.meta.permission as string)) {
-    return next({ name: 'dashboard' })
+    return { name: 'dashboard' }
   }
 
-  next()
+  return true
 })
 
 export default router

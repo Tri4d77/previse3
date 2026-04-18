@@ -14,14 +14,48 @@ class UserController extends Controller
 {
     /**
      * GET /api/v1/users
-     * Felhasználók listája (szervezeten belül).
+     * Felhasználók listája.
+     *
+     * - Szuper-admin: minden szervezet minden felhasználóját látja
+     * - Előfizető: saját szervezet + ügyfél-szervezetek felhasználóit
+     * - Ügyfél: csak a saját szervezet felhasználóit
      */
     public function index(Request $request): JsonResponse
     {
         Gate::authorize('viewAny', User::class);
 
-        $query = User::with(['role', 'organization', 'groups'])
-            ->where('organization_id', $request->user()->organization_id);
+        $authUser = $request->user();
+        $query = User::with(['role', 'organization', 'groups']);
+
+        if ($authUser->isSuperAdmin()) {
+            // Szuper-admin: minden felhasználó, opcionálisan egy szervezetre szűrve
+            if ($request->filled('organization_id')) {
+                $orgId = (int) $request->organization_id;
+                // Adott szervezet + alatta lévő (gyerek) szervezetek
+                $childIds = \App\Models\Organization::where('parent_id', $orgId)->pluck('id');
+                $query->whereIn('organization_id', $childIds->prepend($orgId));
+            }
+        } elseif ($authUser->organization->isSubscriber()) {
+            // Előfizető: saját szervezet + ügyfél-szervezetek felhasználói
+            $clientIds = $authUser->organization->clients()->pluck('id');
+            $allowedIds = $clientIds->prepend($authUser->organization_id);
+
+            // Opcionális szűrés egy ügyfél-szervezetre
+            if ($request->filled('organization_id')) {
+                $orgId = (int) $request->organization_id;
+                if ($allowedIds->contains($orgId)) {
+                    $query->where('organization_id', $orgId);
+                } else {
+                    // Nincs joga ehhez a szervezethez -> üres eredmény
+                    $query->whereRaw('1 = 0');
+                }
+            } else {
+                $query->whereIn('organization_id', $allowedIds);
+            }
+        } else {
+            // Ügyfél szervezet: csak a saját felhasználói
+            $query->where('organization_id', $authUser->organization_id);
+        }
 
         // Szűrők
         if ($request->filled('search')) {
@@ -110,6 +144,8 @@ class UserController extends Controller
         }
 
         // Felhasználó létrehozása meghívó tokennel
+        $invitationToken = Str::random(64);
+
         $user = User::create([
             'organization_id' => $organization->id,
             'name' => $validated['name'],
@@ -118,7 +154,7 @@ class UserController extends Controller
             'role_id' => $validated['role_id'],
             'phone' => $validated['phone'] ?? null,
             'is_active' => false,
-            'invitation_token' => Str::random(64),
+            'invitation_token' => $invitationToken,
             'invitation_sent_at' => now(),
         ]);
 
@@ -131,9 +167,13 @@ class UserController extends Controller
 
         $user->load(['role', 'organization', 'groups']);
 
+        // Meghívó URL generálása (fejlesztői segéd - később SMTP-n megy ki email-ben)
+        $invitationUrl = rtrim(config('app.frontend_url'), '/') . '/invitation/' . $invitationToken;
+
         return response()->json([
             'data' => new UserResource($user),
             'message' => __('users.invited'),
+            'invitation_url' => $invitationUrl,
         ], 201);
     }
 

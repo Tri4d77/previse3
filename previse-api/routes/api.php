@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Auth\AuthController;
@@ -37,6 +38,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
     Route::post('/auth/logout-all', [AuthController::class, 'logoutAll'])->name('auth.logout-all');
     Route::get('/auth/user', [AuthController::class, 'user'])->name('auth.user');
+    Route::post('/auth/verify-password', [AuthController::class, 'verifyPassword'])->name('auth.verify-password');
 
     // --- Felhasználók ---
     Route::get('/users', [UserController::class, 'index']);
@@ -54,5 +56,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
     // --- Engedélyek (a mátrix felépítéséhez) ---
     Route::get('/permissions', [RoleController::class, 'permissions']);
+
+    // --- Szervezetek (sz\u0171r\u0151 lista) ---
+    Route::get('/organizations', [OrganizationController::class, 'index']);
 
 });

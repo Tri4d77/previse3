@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import api from '@/services/api'
+import PasswordStrengthIndicator from '@/components/common/PasswordStrengthIndicator.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -152,11 +153,19 @@ async function handleAccept() {
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('auth.set_password') }}</label>
                 <input v-model="password" type="password" required :placeholder="t('auth.password_hint')"
                   class="block w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-sm" />
+                <!-- Jelszó erősség indikátor -->
+                <div class="mt-3">
+                  <PasswordStrengthIndicator :password="password" />
+                </div>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('auth.confirm_password') }}</label>
                 <input v-model="passwordConfirmation" type="password" required :placeholder="t('auth.confirm_password')"
-                  class="block w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-sm" />
+                  class="block w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-sm"
+                  :class="passwordConfirmation && passwordConfirmation !== password ? 'border-red-400 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'" />
+                <p v-if="passwordConfirmation && passwordConfirmation !== password" class="mt-1 text-xs text-red-600 dark:text-red-400">
+                  A két jelszó nem egyezik.
+                </p>
               </div>
 
               <div v-if="error" class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
