@@ -4,14 +4,6 @@ export interface LoginCredentials {
   password: string
 }
 
-export interface LoginResponse {
-  data: {
-    user: User
-    token: string
-  }
-}
-
-// ========== User ==========
 export interface User {
   id: number
   name: string
@@ -20,14 +12,12 @@ export interface User {
   avatar_url: string | null
   initials: string
   is_active: boolean
+  email_verified_at: string | null
+  pending_email: string | null
   two_factor_enabled: boolean
   last_login_at: string | null
   created_at: string
-  role: Role
-  organization: Organization
-  permissions?: string[]
-  settings?: UserSettings
-  groups?: Group[]
+  settings?: UserSettings | null
 }
 
 export interface UserSettings {
@@ -36,13 +26,14 @@ export interface UserSettings {
   locale: string
   timezone: string
   items_per_page: number
-  default_page: string
+  default_organization_id: number | null
+  lockscreen_timeout_minutes: number
   notification_email: boolean
   notification_push: boolean
   notification_sound: boolean
 }
 
-// ========== Role ==========
+// ========== Membership / Organization ==========
 export interface Role {
   id: number
   name: string
@@ -53,12 +44,66 @@ export interface Role {
   permissions?: string[]
 }
 
-// ========== Organization ==========
 export interface Organization {
   id: number
+  parent_id?: number | null
   name: string
   type: 'platform' | 'subscriber' | 'client'
   slug: string
+  is_active?: boolean
+}
+
+export interface OrganizationNode extends Organization {
+  children: OrganizationNode[]
+}
+
+export interface Membership {
+  id: number
+  is_active?: boolean
+  joined_at?: string | null
+  last_active_at?: string | null
+  organization: Organization
+  role: Role
+  permissions?: string[]
+}
+
+// ========== Login response-ok ==========
+
+/**
+ * Direkt belépés (1 tagság vagy default org).
+ */
+export interface LoginDirectResponse {
+  data: {
+    user: User
+    current_membership: Membership
+    token: string
+  }
+}
+
+/**
+ * Szervezet-választó szükséges.
+ */
+export interface LoginSelectionResponse {
+  requires_organization_selection: true
+  selection_token: string
+  memberships: Membership[]
+}
+
+export type LoginResponse = LoginDirectResponse | LoginSelectionResponse
+
+/**
+ * /auth/user (bejelentkezett állapot).
+ */
+export interface AuthUserResponse {
+  data: {
+    user: User
+    current_membership: Membership | null
+    context_organization: Organization | null
+    is_super_admin_impersonation: boolean
+    is_super_admin: boolean
+    memberships: Membership[]
+    permissions: string[]
+  }
 }
 
 // ========== Group ==========
@@ -99,7 +144,6 @@ export interface PaginatedResponse<T> {
   }
 }
 
-// ========== API Error ==========
 export interface ApiError {
   message: string
   errors?: Record<string, string[]>

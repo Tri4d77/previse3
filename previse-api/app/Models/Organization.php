@@ -76,11 +76,21 @@ class Organization extends Model
     }
 
     /**
-     * Szervezet felhasználói.
+     * Szervezet tagságai (memberships).
      */
-    public function users(): HasMany
+    public function memberships(): HasMany
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(Membership::class);
+    }
+
+    /**
+     * Aktív tagságok (user-ek a membership-en keresztül).
+     */
+    public function activeMemberships(): HasMany
+    {
+        return $this->hasMany(Membership::class)
+            ->where('is_active', true)
+            ->whereNotNull('joined_at');
     }
 
     /**

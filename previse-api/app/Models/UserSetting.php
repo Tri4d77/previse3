@@ -14,7 +14,8 @@ class UserSetting extends Model
         'locale',
         'timezone',
         'items_per_page',
-        'default_page',
+        'default_organization_id',
+        'lockscreen_timeout_minutes',
         'notification_email',
         'notification_push',
         'notification_sound',
@@ -22,6 +23,7 @@ class UserSetting extends Model
 
     protected $casts = [
         'items_per_page' => 'integer',
+        'lockscreen_timeout_minutes' => 'integer',
         'notification_email' => 'boolean',
         'notification_push' => 'boolean',
         'notification_sound' => 'boolean',
@@ -32,5 +34,10 @@ class UserSetting extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function defaultOrganization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'default_organization_id');
     }
 }

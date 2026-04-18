@@ -1,8 +1,6 @@
 <?php
 
 use App\Http\Controllers\Api\OrganizationController;
-use App\Http\Controllers\Api\RoleController;
-use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +27,11 @@ Route::prefix('v1/auth')->group(function () {
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('auth.reset-password');
     Route::post('/accept-invitation', [AuthController::class, 'acceptInvitation'])->name('auth.accept-invitation');
     Route::get('/invitation/{token}', [AuthController::class, 'invitationInfo'])->name('auth.invitation-info');
+
+    // Szervezet-választás belépés után (csak organization-selection ability tokennel)
+    Route::middleware('auth:sanctum')
+        ->post('/select-organization', [AuthController::class, 'selectOrganization'])
+        ->name('auth.select-organization');
 });
 
 // ========== VÉDETT ROUTES (auth:sanctum) ==========
@@ -40,24 +43,16 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/auth/user', [AuthController::class, 'user'])->name('auth.user');
     Route::post('/auth/verify-password', [AuthController::class, 'verifyPassword'])->name('auth.verify-password');
 
-    // --- Felhasználók ---
-    Route::get('/users', [UserController::class, 'index']);
-    Route::post('/users', [UserController::class, 'store']);
-    Route::get('/users/{user}', [UserController::class, 'show']);
-    Route::put('/users/{user}', [UserController::class, 'update']);
-    Route::patch('/users/{user}/toggle-active', [UserController::class, 'toggleActive']);
-    Route::delete('/users/{user}', [UserController::class, 'destroy']);
+    // --- Szervezet-váltás ---
+    Route::post('/auth/switch-organization', [AuthController::class, 'switchOrganization'])->name('auth.switch-organization');
 
-    // --- Szerepkörök ---
-    Route::get('/roles', [RoleController::class, 'index']);
-    Route::post('/roles', [RoleController::class, 'store']);
-    Route::put('/roles/{role}/permissions', [RoleController::class, 'updatePermissions']);
-    Route::delete('/roles/{role}', [RoleController::class, 'destroy']);
+    // --- Szuper-admin: impersonation ---
+    Route::post('/auth/enter-organization/{orgId}', [AuthController::class, 'enterOrganization'])
+        ->whereNumber('orgId')
+        ->name('auth.enter-organization');
+    Route::post('/auth/exit-organization', [AuthController::class, 'exitOrganization'])->name('auth.exit-organization');
 
-    // --- Engedélyek (a mátrix felépítéséhez) ---
-    Route::get('/permissions', [RoleController::class, 'permissions']);
-
-    // --- Szervezetek (sz\u0171r\u0151 lista) ---
-    Route::get('/organizations', [OrganizationController::class, 'index']);
-
+    // --- Szervezetek ---
+    Route::get('/organizations', [OrganizationController::class, 'index'])->name('organizations.index');
+    Route::get('/admin/organizations-tree', [OrganizationController::class, 'tree'])->name('organizations.tree');
 });

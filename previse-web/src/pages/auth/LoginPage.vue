@@ -20,8 +20,15 @@ async function handleLogin() {
   loading.value = true
 
   try {
-    await authStore.login({ email: email.value, password: password.value })
-    router.push({ name: 'dashboard' })
+    const response = await authStore.login({ email: email.value, password: password.value })
+
+    if ('requires_organization_selection' in response) {
+      // Több tagság, nincs default → szervezet-választó oldal
+      router.push({ name: 'select-organization' })
+    } else {
+      // Direkt belépés
+      router.push({ name: 'dashboard' })
+    }
   } catch (err: any) {
     const apiError = err.response?.data as ApiError
     if (apiError?.errors?.email) {

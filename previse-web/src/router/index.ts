@@ -23,6 +23,12 @@ const router = createRouter({
       component: () => import('@/pages/auth/AcceptInvitationPage.vue'),
       meta: { guest: true },
     },
+    {
+      path: '/select-organization',
+      name: 'select-organization',
+      component: () => import('@/pages/auth/SelectOrganizationPage.vue'),
+      meta: { requiresSelection: true },
+    },
 
     // ========== LOCKSCREEN (bejelentkezett, de z\u00e1rolt) ==========
     {
@@ -82,6 +88,19 @@ const router = createRouter({
 // Navigáció őr
 router.beforeEach(async (to, from) => {
   const authStore = useAuthStore()
+
+  // Szervezet-választó oldal kezelése
+  if (to.meta.requiresSelection) {
+    if (!authStore.selectionToken) {
+      return { name: 'login' }
+    }
+    return true
+  }
+
+  // Ha függőben van szervezet-választás, de máshova megy
+  if (authStore.needsOrganizationSelection && !to.meta.guest) {
+    return { name: 'select-organization' }
+  }
 
   // Ha auth szükséges és nincs token -> login
   if (to.meta.requiresAuth && !authStore.token) {

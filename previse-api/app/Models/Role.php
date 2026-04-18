@@ -28,9 +28,12 @@ class Role extends Model
         return $this->belongsTo(Organization::class);
     }
 
-    public function users(): HasMany
+    /**
+     * Tagságok, amik ezt a szerepkört használják.
+     */
+    public function memberships(): HasMany
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(Membership::class);
     }
 
     public function permissions(): BelongsToMany
@@ -40,9 +43,6 @@ class Role extends Model
 
     // ========== SEGÉD METÓDUSOK ==========
 
-    /**
-     * Ellenőrzi, hogy a szerepkörnek van-e egy adott engedélye.
-     */
     public function hasPermission(string $module, string $action): bool
     {
         return $this->permissions()
@@ -51,9 +51,6 @@ class Role extends Model
             ->exists();
     }
 
-    /**
-     * Ellenőrzi, hogy a szerepkörnek van-e egy adott engedélye (pont-szintaxis: "tickets.create").
-     */
     public function hasPermissionTo(string $permission): bool
     {
         [$module, $action] = explode('.', $permission, 2);

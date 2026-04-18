@@ -41,13 +41,94 @@
         </button>
       </div>
 
-      <!-- Organization info -->
-      <div v-show="isSidebarExpanded" class="px-4 py-3 shrink-0">
-        <div class="rounded-lg bg-slate-700/50 px-3 py-2">
-          <p class="text-sm font-medium text-white truncate">{{ authStore.organizationName }}</p>
-          <span class="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-teal-600/30 text-teal-300">
-            {{ authStore.organizationType }}
-          </span>
+      <!-- Organization switcher -->
+      <div v-show="isSidebarExpanded" class="px-4 py-3 shrink-0 relative">
+        <button
+          @click="toggleOrgSwitcher"
+          class="w-full rounded-lg bg-slate-700/50 hover:bg-slate-700 px-3 py-2 transition-colors text-left"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-white truncate">{{ authStore.currentOrganizationName }}</p>
+              <div class="flex items-center gap-1 mt-1">
+                <span class="inline-block text-xs px-2 py-0.5 rounded-full bg-teal-600/30 text-teal-300">
+                  {{ orgTypeLabel(authStore.currentOrganizationType) }}
+                </span>
+                <span v-if="authStore.isImpersonation" class="inline-block text-xs px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-200">
+                  szuper-admin
+                </span>
+              </div>
+            </div>
+            <svg v-if="hasSwitcher" class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+            </svg>
+          </div>
+        </button>
+
+        <!-- Org switcher dropdown -->
+        <div
+          v-if="orgSwitcherOpen && hasSwitcher"
+          class="absolute left-4 right-4 top-full mt-1 z-50 bg-slate-900 border border-slate-700 rounded-lg shadow-xl max-h-96 overflow-y-auto custom-scrollbar"
+        >
+          <!-- Szuper-admin: fa-struktúra -->
+          <div v-if="authStore.isSuperAdmin">
+            <div class="p-2 border-b border-slate-700">
+              <input
+                v-model="orgSearch"
+                type="text"
+                placeholder="Szervezet keresése..."
+                class="w-full px-2 py-1 text-sm bg-slate-800 text-white placeholder-slate-500 rounded border border-slate-700 focus:outline-none focus:border-teal-500"
+              />
+            </div>
+            <div v-if="orgTreeLoading" class="p-3 text-center">
+              <div class="animate-spin w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full mx-auto"></div>
+            </div>
+            <div v-else class="p-1">
+              <!-- Vissza a Platform-ra, ha impersonation-ben van -->
+              <button
+                v-if="authStore.isImpersonation && platformNode"
+                @click="handleExitOrg"
+                class="w-full text-left px-3 py-2 text-sm text-teal-400 hover:bg-slate-800 rounded flex items-center gap-2"
+              >
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                </svg>
+                Vissza a Platform-ra
+              </button>
+              <!-- Fa -->
+              <OrgTreeNode
+                v-for="root in filteredTree"
+                :key="root.id"
+                :node="root"
+                :current-org-id="currentOrgId"
+                :depth="0"
+                @select="handleSelectOrg"
+              />
+              <div v-if="filteredTree.length === 0 && orgSearch" class="p-3 text-sm text-slate-500 text-center">
+                Nincs találat
+              </div>
+            </div>
+          </div>
+
+          <!-- Normál user: egyszerű lista -->
+          <div v-else class="p-1">
+            <button
+              v-for="m in authStore.memberships"
+              :key="m.id"
+              @click="handleSwitchMembership(m.id)"
+              class="w-full text-left px-3 py-2 text-sm rounded flex items-center gap-2"
+              :class="m.id === authStore.currentMembership?.id ? 'bg-teal-600/20 text-white' : 'text-slate-300 hover:bg-slate-800'"
+            >
+              <svg v-if="m.id === authStore.currentMembership?.id" class="w-4 h-4 text-teal-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              <span v-else class="w-4 h-4 shrink-0"></span>
+              <div class="min-w-0">
+                <p class="font-medium truncate">{{ m.organization.name }}</p>
+                <p class="text-xs text-slate-500">{{ m.role.name }}</p>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -168,6 +249,27 @@
       class="flex-1 flex flex-col transition-all duration-300"
       :class="sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'"
     >
+      <!-- Impersonation banner -->
+      <div
+        v-if="authStore.isImpersonation && authStore.contextOrganization"
+        class="bg-amber-500/90 dark:bg-amber-600/90 text-white px-4 py-2 flex items-center justify-between text-sm"
+      >
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+          </svg>
+          <span>
+            <strong>Szuper-admin mód:</strong> {{ authStore.contextOrganization.name }} megtekintése
+          </span>
+        </div>
+        <button
+          @click="handleExitOrg"
+          class="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-xs font-medium transition-colors"
+        >
+          Vissza a Platform-ra
+        </button>
+      </div>
+
       <!-- Header -->
       <header class="sticky top-0 z-30 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 sm:px-6">
         <!-- Left side -->
@@ -304,7 +406,7 @@
       <footer class="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 sm:px-6 py-3">
         <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
           <span>{{ t('app.copyright') }}</span>
-          <span>{{ authStore.organizationName }}</span>
+          <span>{{ authStore.currentOrganizationName }}</span>
         </div>
       </footer>
     </div>
@@ -327,6 +429,9 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useInactivityTimer } from '@/composables/useInactivityTimer'
 import InactivityWarningModal from '@/components/common/InactivityWarningModal.vue'
+import OrgTreeNode from '@/components/common/OrgTreeNode.vue'
+import api from '@/services/api'
+import type { OrganizationNode } from '@/types'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -377,6 +482,114 @@ function lockNow() {
 
 // UI state
 const sidebarOpenMobile = ref(false)
+
+// ========== ORG SWITCHER ==========
+const orgSwitcherOpen = ref(false)
+const orgTree = ref<OrganizationNode[]>([])
+const orgTreeLoading = ref(false)
+const orgSearch = ref('')
+
+// Van-e mit váltani?
+const hasSwitcher = computed(() => {
+  if (authStore.isSuperAdmin) return true
+  return authStore.memberships.length > 1
+})
+
+const currentOrgId = computed(() => {
+  if (authStore.contextOrganization) return authStore.contextOrganization.id
+  return authStore.currentMembership?.organization.id
+})
+
+const platformNode = computed<OrganizationNode | null>(() => {
+  return orgTree.value.find(n => n.type === 'platform') || null
+})
+
+// Szűrt fa (keresés alapján)
+const filteredTree = computed<OrganizationNode[]>(() => {
+  if (!orgSearch.value.trim()) return orgTree.value
+  const q = orgSearch.value.toLowerCase()
+  return orgTree.value.map(n => filterTreeNode(n, q)).filter((n): n is OrganizationNode => n !== null)
+})
+
+function filterTreeNode(node: OrganizationNode, query: string): OrganizationNode | null {
+  const matches = node.name.toLowerCase().includes(query)
+  const filteredChildren = node.children
+    .map(c => filterTreeNode(c, query))
+    .filter((c): c is OrganizationNode => c !== null)
+
+  if (matches || filteredChildren.length > 0) {
+    return { ...node, children: filteredChildren }
+  }
+  return null
+}
+
+function orgTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    platform: 'Platform',
+    subscriber: 'Előfizető',
+    client: 'Ügyfél',
+  }
+  return map[type] || type
+}
+
+async function toggleOrgSwitcher() {
+  if (!hasSwitcher.value) return
+  orgSwitcherOpen.value = !orgSwitcherOpen.value
+  if (orgSwitcherOpen.value && authStore.isSuperAdmin && orgTree.value.length === 0) {
+    await loadOrgTree()
+  }
+}
+
+async function loadOrgTree() {
+  orgTreeLoading.value = true
+  try {
+    const response = await api.get('/admin/organizations-tree')
+    orgTree.value = response.data.data
+  } catch {
+    // silent
+  } finally {
+    orgTreeLoading.value = false
+  }
+}
+
+async function handleSelectOrg(orgId: number) {
+  orgSwitcherOpen.value = false
+  try {
+    // Ha Platform-ra lépünk → exit
+    if (platformNode.value && orgId === platformNode.value.id) {
+      if (authStore.isImpersonation) {
+        await authStore.exitOrganization()
+      }
+    } else if (authStore.isSuperAdmin) {
+      // Másik szervezetbe → enterOrganization
+      await authStore.enterOrganization(orgId)
+    }
+    // Router push, hogy a route guard ellenőrizze az új jogokat
+    await router.push({ name: 'dashboard' })
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+async function handleExitOrg() {
+  orgSwitcherOpen.value = false
+  try {
+    await authStore.exitOrganization()
+    await router.push({ name: 'dashboard' })
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+async function handleSwitchMembership(membershipId: number) {
+  orgSwitcherOpen.value = false
+  try {
+    await authStore.switchOrganization(membershipId)
+    await router.push({ name: 'dashboard' })
+  } catch (err) {
+    console.error(err)
+  }
+}
 const sidebarCollapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true')
 const sidebarHover = ref(false)
 const profileOpen = ref(false)

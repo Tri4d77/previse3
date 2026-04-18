@@ -5,11 +5,15 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * User (személyes) adatok.
+ *
+ * Ez a resource CSAK a user-szintű (szervezet-független) adatokat tartalmazza.
+ * A membership-specifikus adatok (szerepkör, engedélyek, szervezet)
+ * külön részében adjuk vissza a megfelelő válaszokban.
+ */
 class UserResource extends JsonResource
 {
-    /**
-     * Felhasználó adatai az API válaszban.
-     */
     public function toArray(Request $request): array
     {
         return [
@@ -20,35 +24,25 @@ class UserResource extends JsonResource
             'avatar_url' => $this->avatar_path ? asset('storage/' . $this->avatar_path) : null,
             'initials' => $this->initials,
             'is_active' => $this->is_active,
+            'email_verified_at' => $this->email_verified_at?->toIso8601String(),
+            'pending_email' => $this->pending_email,
             'two_factor_enabled' => $this->hasTwoFactorEnabled(),
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),
-            'role' => [
-                'id' => $this->role->id,
-                'name' => $this->role->name,
-                'slug' => $this->role->slug,
-            ],
-            'organization' => [
-                'id' => $this->organization->id,
-                'name' => $this->organization->name,
-                'type' => $this->organization->type,
-                'slug' => $this->organization->slug,
-            ],
-            'permissions' => $this->when(
-                $request->routeIs('auth.user', 'auth.login'),
-                fn () => $this->role->permissions->map(fn ($p) => $p->module . '.' . $p->action)->values()
-            ),
             'settings' => $this->when(
-                $request->routeIs('auth.user', 'auth.login'),
-                fn () => $this->getOrCreateSettings()->only([
-                    'theme', 'color_scheme', 'locale', 'timezone',
-                    'items_per_page', 'default_page',
-                    'notification_email', 'notification_push', 'notification_sound',
-                ])
-            ),
-            'groups' => $this->when(
-                $this->relationLoaded('groups'),
-                fn () => $this->groups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name])
+                $this->relationLoaded('settings') || $request->routeIs('auth.user', 'auth.login'),
+                fn () => $this->settings ? [
+                    'theme' => $this->settings->theme,
+                    'color_scheme' => $this->settings->color_scheme,
+                    'locale' => $this->settings->locale,
+                    'timezone' => $this->settings->timezone,
+                    'items_per_page' => $this->settings->items_per_page,
+                    'default_organization_id' => $this->settings->default_organization_id,
+                    'lockscreen_timeout_minutes' => $this->settings->lockscreen_timeout_minutes,
+                    'notification_email' => $this->settings->notification_email,
+                    'notification_push' => $this->settings->notification_push,
+                    'notification_sound' => $this->settings->notification_sound,
+                ] : null
             ),
         ];
     }

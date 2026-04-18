@@ -19,7 +19,17 @@ return new class extends Migration
             $table->text('abilities')->nullable();
             $table->timestamp('last_used_at')->nullable();
             $table->timestamp('expires_at')->nullable()->index();
+
+            // Saját bővítések:
+            // - current_membership_id: normál user esetén melyik tagsággal dolgozik
+            // - context_organization_id: szuper-admin impersonation esetén melyik szervezet kontextusában
+            $table->foreignId('current_membership_id')->nullable();
+            $table->foreignId('context_organization_id')->nullable();
+
             $table->timestamps();
+
+            $table->index('current_membership_id');
+            $table->index('context_organization_id');
         });
     }
 

@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         // ========== ORGANIZATIONS ==========
@@ -47,31 +44,34 @@ return new class extends Migration
             $table->unique(['organization_id', 'slug']);
         });
 
-        // ========== USERS ==========
+        // ========== USERS (user = személy, szervezet-független) ==========
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->string('email')->unique();
-            $table->string('password');
+            $table->string('password')->nullable(); // Lehet NULL meghívott usernél, amíg be nem állítja
             $table->string('avatar_path', 500)->nullable();
             $table->string('phone', 50)->nullable();
-            $table->foreignId('role_id')->constrained()->restrictOnDelete();
             $table->boolean('is_active')->default(true);
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('invitation_token', 100)->nullable()->index();
-            $table->timestamp('invitation_sent_at')->nullable();
+
+            // Email-változtatás flow
+            $table->string('pending_email')->nullable();
+            $table->string('email_change_token', 100)->nullable()->index();
+            $table->timestamp('email_change_sent_at')->nullable();
+
+            // 2FA
             $table->text('two_factor_secret')->nullable();
             $table->text('two_factor_recovery_codes')->nullable();
             $table->timestamp('two_factor_confirmed_at')->nullable();
+
+            // Bejelentkezés követés
             $table->timestamp('last_login_at')->nullable();
             $table->string('last_login_ip', 45)->nullable();
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index('organization_id');
-            $table->index('role_id');
             $table->index('is_active');
         });
 
@@ -84,11 +84,36 @@ return new class extends Migration
             $table->string('locale', 10)->default('hu');
             $table->string('timezone', 50)->default('Europe/Budapest');
             $table->unsignedSmallInteger('items_per_page')->default(25);
-            $table->string('default_page', 100)->default('dashboard');
+            $table->foreignId('default_organization_id')->nullable()->constrained('organizations')->nullOnDelete();
+            $table->unsignedSmallInteger('lockscreen_timeout_minutes')->default(30); // 0 = soha
             $table->boolean('notification_email')->default(true);
             $table->boolean('notification_push')->default(true);
             $table->boolean('notification_sound')->default(true);
             $table->timestamps();
+        });
+
+        // ========== MEMBERSHIPS (user ↔ organization ↔ role) ==========
+        Schema::create('memberships', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('role_id')->constrained()->restrictOnDelete();
+            $table->boolean('is_active')->default(true);
+            $table->string('invitation_token', 100)->nullable()->index();
+            $table->timestamp('invitation_sent_at')->nullable();
+            $table->timestamp('joined_at')->nullable();
+            $table->timestamp('last_active_at')->nullable();
+
+            // Szervezet elhagyásához token
+            $table->string('leave_token', 100)->nullable()->index();
+            $table->timestamp('leave_sent_at')->nullable();
+
+            $table->timestamps();
+            $table->softDeletes();
+
+            // Aktív tagság egyedi a (user, organization) páronként
+            $table->index(['user_id', 'organization_id']);
+            $table->index('is_active');
         });
 
         // ========== PASSWORD RESET TOKENS ==========
@@ -99,12 +124,10 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('memberships');
         Schema::dropIfExists('user_settings');
         Schema::dropIfExists('users');
         Schema::dropIfExists('roles');

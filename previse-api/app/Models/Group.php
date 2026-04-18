@@ -14,15 +14,16 @@ class Group extends Model
         'description',
     ];
 
-    // ========== KAPCSOLATOK ==========
-
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
     }
 
-    public function users(): BelongsToMany
+    /**
+     * Tagok - memberships-en keresztül (nem user-ek közvetlenül).
+     */
+    public function memberships(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'group_user');
+        return $this->belongsToMany(Membership::class, 'group_membership');
     }
 }
