@@ -9,6 +9,17 @@ use Illuminate\Support\Str;
 
 class Organization extends Model
 {
+    // Szervezet lehetséges státuszai
+    public const STATUS_ACTIVE = 'active';      // Aktív
+    public const STATUS_INACTIVE = 'inactive';  // Átmenetileg inaktív
+    public const STATUS_TERMINATED = 'terminated'; // Megszűnt (pl. előfizetés lejárt)
+
+    public const STATUSES = [
+        self::STATUS_ACTIVE,
+        self::STATUS_INACTIVE,
+        self::STATUS_TERMINATED,
+    ];
+
     protected $fillable = [
         'parent_id',
         'type',
@@ -22,12 +33,15 @@ class Organization extends Model
         'tax_number',
         'logo_path',
         'settings',
+        'status',
         'is_active',
+        'terminated_at',
     ];
 
     protected $casts = [
         'settings' => 'array',
         'is_active' => 'boolean',
+        'terminated_at' => 'datetime',
     ];
 
     /**
@@ -132,6 +146,37 @@ class Organization extends Model
     public function isClient(): bool
     {
         return $this->type === 'client';
+    }
+
+    public function isTerminated(): bool
+    {
+        return $this->status === self::STATUS_TERMINATED;
+    }
+
+    public function isInactive(): bool
+    {
+        return $this->status === self::STATUS_INACTIVE;
+    }
+
+    /**
+     * Státusz beállítása - szinkronizálja az is_active és terminated_at mezőket.
+     */
+    public function setStatus(string $status): void
+    {
+        if (! in_array($status, self::STATUSES)) {
+            throw new \InvalidArgumentException("Érvénytelen státusz: {$status}");
+        }
+
+        $this->status = $status;
+        $this->is_active = $status === self::STATUS_ACTIVE;
+
+        if ($status === self::STATUS_TERMINATED && ! $this->terminated_at) {
+            $this->terminated_at = now();
+        } elseif ($status !== self::STATUS_TERMINATED) {
+            $this->terminated_at = null;
+        }
+
+        $this->save();
     }
 
     /**

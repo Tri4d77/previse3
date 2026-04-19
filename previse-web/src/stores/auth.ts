@@ -30,6 +30,19 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const needsOrganizationSelection = computed(() => !!selectionToken.value)
 
+  /**
+   * Hozzáférhet-e a user a szervezet-kezeléshez?
+   * - Szuper-admin: mindig
+   * - Subscriber admin: igen (saját + ügyfél-szervezetek kezeléséhez)
+   */
+  const canManageOrganizations = computed(() => {
+    if (isSuperAdmin.value) return true
+    if (isImpersonation.value) return true // impersonation alatt a szuper-admin jogaival fut
+    if (!currentMembership.value) return false
+    return currentMembership.value.organization.type === 'subscriber'
+      && currentMembership.value.role.slug === 'admin'
+  })
+
   const userName = computed(() => user.value?.name || '')
   const userEmail = computed(() => user.value?.email || '')
   const userInitials = computed(() => user.value?.initials || '')
@@ -239,7 +252,7 @@ export const useAuthStore = defineStore('auth', () => {
     isSuperAdmin, isImpersonation, memberships, permissions,
     loading, isLocked, selectionToken, selectionMemberships,
     // Getters
-    isAuthenticated, needsOrganizationSelection,
+    isAuthenticated, needsOrganizationSelection, canManageOrganizations,
     userName, userEmail, userInitials,
     currentOrganizationName, currentOrganizationType, currentRoleName,
     // Actions

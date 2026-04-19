@@ -113,14 +113,9 @@ async function handleLogin() {
 
             <!-- Jelszó -->
             <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('auth.password') }}
-                </label>
-                <router-link to="/forgot-password" class="text-sm text-teal-600 hover:text-teal-500 dark:text-teal-400 font-medium">
-                  {{ t('auth.forgot_password') }}
-                </router-link>
-              </div>
+              <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                {{ t('auth.password') }}
+              </label>
               <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,6 +145,12 @@ async function handleLogin() {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
                   </svg>
                 </button>
+              </div>
+              <!-- Elfelejtett jelszó link a jelszó mező alatt -->
+              <div class="mt-1.5 text-right">
+                <router-link to="/forgot-password" class="text-sm text-teal-600 hover:text-teal-500 dark:text-teal-400 font-medium">
+                  {{ t('auth.forgot_password') }}
+                </router-link>
               </div>
             </div>
 

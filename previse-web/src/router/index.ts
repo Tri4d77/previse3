@@ -68,6 +68,12 @@ const router = createRouter({
           component: () => import('@/pages/admin/OrganizationPage.vue'),
           meta: { permission: 'settings.manage_organization' },
         },
+        {
+          path: 'admin/organizations',
+          name: 'admin-organizations',
+          component: () => import('@/pages/admin/OrganizationsPage.vue'),
+          meta: { requiresCanManageOrganizations: true },
+        },
         // Profil
         {
           path: 'profile',
@@ -134,6 +140,16 @@ router.beforeEach(async (to, from) => {
 
   // Jogosultság ellenőrzés
   if (to.meta.permission && !authStore.hasPermission(to.meta.permission as string)) {
+    return { name: 'dashboard' }
+  }
+
+  // Szuper-admin only route-ok
+  if (to.meta.requiresSuperAdmin && !authStore.isSuperAdmin) {
+    return { name: 'dashboard' }
+  }
+
+  // Szervezet-kezelés jogosultság (szuper-admin VAGY subscriber admin)
+  if (to.meta.requiresCanManageOrganizations && !authStore.canManageOrganizations) {
     return { name: 'dashboard' }
   }
 

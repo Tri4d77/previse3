@@ -23,12 +23,16 @@ return new class extends Migration
             $table->string('tax_number', 50)->nullable();
             $table->string('logo_path', 500)->nullable();
             $table->json('settings')->nullable();
-            $table->boolean('is_active')->default(true);
+            // status: active (aktív), inactive (átmenetileg inaktív), terminated (megszűnt/előfizetés lejárt)
+            $table->string('status', 20)->default('active');
+            $table->boolean('is_active')->default(true); // computed from status, marad backward compat miatt
+            $table->timestamp('terminated_at')->nullable();
             $table->timestamps();
 
             $table->index('parent_id');
             $table->index('type');
             $table->index('is_active');
+            $table->index('status');
         });
 
         // ========== ROLES ==========

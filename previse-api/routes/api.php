@@ -56,6 +56,10 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
     // --- Szervezetek ---
     Route::get('/organizations', [OrganizationController::class, 'index'])->name('organizations.index');
+    Route::post('/organizations', [OrganizationController::class, 'store'])->name('organizations.store');
+    Route::get('/organizations/{organization}', [OrganizationController::class, 'show'])->name('organizations.show');
+    Route::put('/organizations/{organization}', [OrganizationController::class, 'update'])->name('organizations.update');
+    Route::post('/organizations/{organization}/status', [OrganizationController::class, 'setStatus'])->name('organizations.set-status');
     Route::get('/admin/organizations-tree', [OrganizationController::class, 'tree'])->name('organizations.tree');
 
     // --- Szerepk\u00f6r\u00f6k ---
