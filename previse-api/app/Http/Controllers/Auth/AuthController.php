@@ -275,6 +275,8 @@ class AuthController extends Controller
         $newToken->accessToken->update([
             'current_membership_id' => $membership->id,
             'context_organization_id' => null,
+            'ip_address' => $request->ip(),
+            'user_agent' => Str::limit((string) $request->userAgent(), 500, ''),
         ]);
 
         return response()->json([
@@ -297,6 +299,8 @@ class AuthController extends Controller
         $newToken->accessToken->update([
             'current_membership_id' => null,
             'context_organization_id' => $organization->id,
+            'ip_address' => $request->ip(),
+            'user_agent' => Str::limit((string) $request->userAgent(), 500, ''),
         ]);
 
         return response()->json([

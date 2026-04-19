@@ -20,4 +20,12 @@ return [
     'password_required' => 'A jelszó megadása kötelező.',
     'unauthenticated' => 'Bejelentkezés szükséges.',
     'forbidden' => 'Nincs jogosultsága ehhez a művelethez.',
+
+    // Jelszó- és sessionkezelés (M4)
+    'password_same_as_old' => 'Az új jelszó nem egyezhet meg a jelenlegivel.',
+    'password_changed' => 'A jelszó sikeresen módosítva.',
+    'cannot_revoke_current_session' => 'A jelenlegi sessiont nem tudod innen kijelentkeztetni. Használd a Kijelentkezés gombot.',
+    'session_not_found' => 'A session nem található.',
+    'session_revoked' => 'Session sikeresen kijelentkeztetve.',
+    'other_sessions_revoked' => 'Minden más eszköz kijelentkeztetve.',
 ];

@@ -135,5 +135,25 @@ export default {
     notification_email: 'Email',
     notification_push: 'Push',
     notification_internal: 'Belső',
+
+    // Biztonság (M4)
+    tab_security: 'Biztonság',
+    security_title: 'Biztonsági beállítások',
+    password_section: 'Jelszó módosítása',
+    password_hint: 'Legalább 10 karakter, tartalmazzon kis- és nagybetűt, valamint számot.',
+    password_mismatch: 'A két jelszó nem egyezik.',
+    logout_other_devices_label: 'Kijelentkeztetés minden más eszközről jelszó módosítás után',
+    password_updated: 'Jelszó sikeresen módosítva.',
+
+    sessions_section: 'Aktív sessionök',
+    sessions_intro: 'Ezek az eszközök jelenleg be vannak jelentkezve a fiókodba. Ha ismeretlen eszközt látsz, azonnal jelentkeztesd ki.',
+    session_current: 'Jelenlegi',
+    session_impersonation: 'Szuper-admin belépés',
+    session_last_used: 'Utolsó használat',
+    session_ip: 'IP',
+    session_revoke: 'Kijelentkeztetés',
+    session_revoke_confirm: 'Biztosan kijelentkezteted ezt az eszközt?',
+    sessions_revoke_others: 'Minden más eszköz kijelentkeztetése',
+    sessions_revoke_others_confirm: 'Biztosan kijelentkezteted az összes többi eszközt?',
   },
 }

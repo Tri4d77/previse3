@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\OrganizationController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +45,12 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/auth/logout-all', [AuthController::class, 'logoutAll'])->name('auth.logout-all');
     Route::get('/auth/user', [AuthController::class, 'user'])->name('auth.user');
     Route::post('/auth/verify-password', [AuthController::class, 'verifyPassword'])->name('auth.verify-password');
+
+    // --- Profil: biztons\u00e1g (M4) ---
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
+    Route::get('/profile/sessions', [ProfileController::class, 'sessions'])->name('profile.sessions.index');
+    Route::delete('/profile/sessions/others', [ProfileController::class, 'destroyOtherSessions'])->name('profile.sessions.destroy-others');
+    Route::delete('/profile/sessions/{id}', [ProfileController::class, 'destroySession'])->whereNumber('id')->name('profile.sessions.destroy');
 
     // --- Szervezet-váltás ---
     Route::post('/auth/switch-organization', [AuthController::class, 'switchOrganization'])->name('auth.switch-organization');

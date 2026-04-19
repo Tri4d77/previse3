@@ -135,5 +135,25 @@ export default {
     notification_email: 'Email',
     notification_push: 'Push',
     notification_internal: 'Internal',
+
+    // Security (M4)
+    tab_security: 'Security',
+    security_title: 'Security settings',
+    password_section: 'Change password',
+    password_hint: 'At least 10 characters, including uppercase, lowercase and a number.',
+    password_mismatch: 'Passwords do not match.',
+    logout_other_devices_label: 'Log out from all other devices after password change',
+    password_updated: 'Password successfully changed.',
+
+    sessions_section: 'Active sessions',
+    sessions_intro: 'These devices are currently logged into your account. If you see an unknown device, log it out immediately.',
+    session_current: 'Current',
+    session_impersonation: 'Super-admin session',
+    session_last_used: 'Last used',
+    session_ip: 'IP',
+    session_revoke: 'Revoke',
+    session_revoke_confirm: 'Are you sure you want to log this device out?',
+    sessions_revoke_others: 'Log out all other devices',
+    sessions_revoke_others_confirm: 'Are you sure you want to log out all other devices?',
   },
 }

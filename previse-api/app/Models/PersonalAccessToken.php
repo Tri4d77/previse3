@@ -20,5 +20,7 @@ class PersonalAccessToken extends SanctumPersonalAccessToken
         'last_used_at',
         'current_membership_id',
         'context_organization_id',
+        'ip_address',
+        'user_agent',
     ];
 }

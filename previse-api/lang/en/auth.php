@@ -20,4 +20,12 @@ return [
     'password_required' => 'Password is required.',
     'unauthenticated' => 'Authentication required.',
     'forbidden' => 'You do not have permission to perform this action.',
+
+    // Password & session management (M4)
+    'password_same_as_old' => 'The new password must be different from the current one.',
+    'password_changed' => 'Password has been successfully changed.',
+    'cannot_revoke_current_session' => 'You cannot revoke your current session here. Use the Logout button.',
+    'session_not_found' => 'Session not found.',
+    'session_revoked' => 'Session successfully revoked.',
+    'other_sessions_revoked' => 'All other devices have been logged out.',
 ];
