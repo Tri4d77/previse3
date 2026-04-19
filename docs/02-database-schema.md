@@ -1,5 +1,13 @@
 # 02 - Adatbázis-séma
 
+> ⚠️ **Frissítve az M1–M2.5 fázisokban.** A core user/organization réteg a [11-user-membership.md](11-user-membership.md) dokumentum szerinti **User–Membership–Organization** modellre épül. Az alábbi részek frissítve:
+> - `organizations` tábla: `status`, `terminated_at`, `parent_id`, `type` oszlopok
+> - `users` tábla: a korábbi `organization_id` / `role_id` / `group_id` mezők **megszűntek**, átkerültek a `memberships` táblába
+> - Új táblák: `memberships`, `invitations`
+> - `personal_access_tokens` kiegészítve `current_membership_id` és `context_organization_id` oszlopokkal (super-admin impersonation)
+> - A `user_groups` pivot átnevezve `group_membership`-re (membership_id alapon)
+> - `user_settings`: `default_page` helyett `default_organization_id` + `lockscreen_timeout_minutes`
+
 ## 1. Áttekintés
 
 Az adatbázis MySQL 8.x / MariaDB 10.6+ motorra épül, Laravel Eloquent ORM-mel. A séma modulonként van szervezve, minden tábla Laravel migration fájlként kerül implementálásra.
@@ -18,63 +26,112 @@ Az adatbázis MySQL 8.x / MariaDB 10.6+ motorra épül, Laravel Eloquent ORM-mel
 
 ### 2.1 organizations
 
-Szervezetek (multi-tenant elkülönítés alapja).
+Szervezetek hierarchikus struktúrában (Platform → Subscriber → Client), multi-tenant elkülönítés alapja.
 
 | Mező | Típus | Leírás |
 |------|-------|--------|
 | id | BIGINT PK | Azonosító |
+| parent_id | BIGINT FK NULL | Szülő szervezet (hierarchia: Platform gyökér; Subscriber szülője Platform; Client szülője Subscriber) |
+| type | ENUM('platform','subscriber','client') | Szervezet típus |
 | name | VARCHAR(255) | Szervezet neve |
 | slug | VARCHAR(100) UNIQUE | URL-barát azonosító |
 | address | TEXT NULL | Cím |
+| city | VARCHAR(100) NULL | Város |
+| zip_code | VARCHAR(20) NULL | Irányítószám |
 | phone | VARCHAR(50) NULL | Telefon |
 | email | VARCHAR(255) NULL | Kapcsolattartó email |
+| tax_number | VARCHAR(50) NULL | Adószám |
 | logo_path | VARCHAR(500) NULL | Logo fájl elérési útja |
 | settings | JSON NULL | Szervezet-specifikus beállítások |
-| is_active | BOOLEAN DEFAULT true | Aktív-e |
+| status | ENUM('active','inactive','terminated') DEFAULT 'active' | Szervezet státusza |
+| is_active | BOOLEAN DEFAULT true | Aktív-e (redundáns, a status-szal szinkronban tartva) |
+| terminated_at | TIMESTAMP NULL | Megszűnés időpontja (csak terminated státusznál) |
 | created_at | TIMESTAMP | Létrehozás |
 | updated_at | TIMESTAMP | Módosítás |
+| deleted_at | TIMESTAMP NULL | Soft delete |
+
+**Indexek**: parent_id, type, is_active, status
+
+**Megjegyzés**: a `status` és `is_active` mezőket a `Organization::setStatus()` metódus szinkronban tartja (csak `active` esetén `is_active = true`).
 
 ### 2.2 users
+
+Globális felhasználók (személyek). Szervezeti tagság a külön `memberships` táblában.
 
 | Mező | Típus | Leírás |
 |------|-------|--------|
 | id | BIGINT PK | Azonosító |
-| organization_id | BIGINT FK | Szervezet |
 | name | VARCHAR(255) | Teljes név |
-| email | VARCHAR(255) UNIQUE | Email cím |
-| password | VARCHAR(255) | Jelszó hash |
+| email | VARCHAR(255) UNIQUE | Email cím (globálisan egyedi) |
+| password | VARCHAR(255) NULL | Jelszó hash (NULL ha még nem fogadta el a meghívót) |
 | avatar_path | VARCHAR(500) NULL | Profilkép elérési útja |
 | phone | VARCHAR(50) NULL | Telefonszám |
-| role_id | BIGINT FK | Szerepkör |
-| group_id | BIGINT FK NULL | Felhasználói csoport |
-| is_active | BOOLEAN DEFAULT true | Aktív-e |
+| is_super_admin | BOOLEAN DEFAULT false | Szuper-admin jelölő (Platform adminja) |
+| is_active | BOOLEAN DEFAULT true | Globális aktivitás (false = teljes kizárás) |
 | email_verified_at | TIMESTAMP NULL | Email megerősítés |
-| invitation_token | VARCHAR(100) NULL | Meghívó token |
 | last_login_at | TIMESTAMP NULL | Utolsó bejelentkezés |
 | remember_token | VARCHAR(100) NULL | Emlékeztető token |
 | created_at | TIMESTAMP | Létrehozás |
 | updated_at | TIMESTAMP | Módosítás |
 | deleted_at | TIMESTAMP NULL | Soft delete |
 
-### 2.3 user_settings
+> **A szerepkör, csoport, szervezeti kötés és tagság-aktivitás a `memberships` táblában van.** Egy user több szervezetben is tag lehet, membershipenként külön role-lal. Lásd [11-user-membership.md](11-user-membership.md).
+
+**M5 (2FA) és M6 (email-change), M7 (fiók-törlés) fázisokban ide kerül még:**
+- `two_factor_secret`, `two_factor_recovery_codes`, `two_factor_confirmed_at` (M5)
+- `pending_email`, `email_change_token`, `email_change_sent_at` (M6)
+- `scheduled_deletion_at` (M7)
+
+### 2.3 memberships
+
+Felhasználói tagságok szervezetekben. Egy user–szervezet páros csak egyszer szerepelhet (unique).
+
+| Mező | Típus | Leírás |
+|------|-------|--------|
+| id | BIGINT PK | Azonosító |
+| user_id | BIGINT FK | Felhasználó |
+| organization_id | BIGINT FK | Szervezet |
+| role_id | BIGINT FK | Szerepkör (adott szervezet saját role-jai közül) |
+| is_default | BOOLEAN DEFAULT false | Alapértelmezett tagság (bejelentkezés után ezt használja) |
+| is_active | BOOLEAN DEFAULT true | Tagság-szintű aktivitás (org admin deaktiválhatja) |
+| invitation_token | VARCHAR(100) NULL | Függőben lévő meghívó (NULL ha már elfogadta) |
+| invitation_sent_at | TIMESTAMP NULL | Meghívó kiküldés ideje |
+| joined_at | TIMESTAMP NULL | Tagság elfogadásának ideje |
+| last_accessed_at | TIMESTAMP NULL | Utolsó aktív szervezet-használat |
+| created_at | TIMESTAMP | Létrehozás |
+| updated_at | TIMESTAMP | Módosítás |
+| deleted_at | TIMESTAMP NULL | Soft delete (kilépés szervezetből) |
+
+**Unique**: (user_id, organization_id) – az aktív (nem soft-deleted) sorokra
+
+**Indexek**: user_id, organization_id, role_id, is_default, is_active
+
+### 2.4 invitations
+
+Kiküldött meghívók — a `memberships.invitation_token` pár, külön táblában csak a kibővített audithoz (új user meghívás információi).
+
+*Megjegyzés*: az aktuális implementáció a `memberships` tábla `invitation_token` + `invitation_sent_at` mezőit használja, így külön `invitations` tábla nem feltétlenül szükséges. Ha később auditálási igény felmerül (ki, mikor, milyen email-lel hívott meg, ha ugyanaz a user többször meghívást kapott), akkor lesz dedikált tábla.
+
+### 2.5 user_settings
 
 | Mező | Típus | Leírás |
 |------|-------|--------|
 | id | BIGINT PK | Azonosító |
 | user_id | BIGINT FK UNIQUE | Felhasználó |
 | theme | VARCHAR(50) DEFAULT 'light' | Téma (light/dark) |
-| color_scheme | VARCHAR(50) DEFAULT 'blue' | Színséma |
-| locale | VARCHAR(10) DEFAULT 'hu' | Nyelv |
+| color_scheme | VARCHAR(50) DEFAULT 'teal' | Színséma (alapértelmezett: teal) |
+| locale | VARCHAR(10) DEFAULT 'hu' | Nyelv (hu/en) |
 | timezone | VARCHAR(50) DEFAULT 'Europe/Budapest' | Időzóna |
 | items_per_page | INT DEFAULT 25 | Lista elemszám |
-| default_page | VARCHAR(100) DEFAULT 'dashboard' | Alapértelmezett oldal |
+| default_organization_id | BIGINT FK NULL | Alapértelmezett szervezet bejelentkezés után (több tagság esetén) |
+| lockscreen_timeout_minutes | SMALLINT DEFAULT 30 | Lockscreen inaktivitási időkorlát (perc) |
 | notification_email | BOOLEAN DEFAULT true | Email értesítés |
 | notification_push | BOOLEAN DEFAULT true | Push értesítés |
 | notification_sound | BOOLEAN DEFAULT true | Hangjelzés |
 | created_at | TIMESTAMP | Létrehozás |
 | updated_at | TIMESTAMP | Módosítás |
 
-### 2.4 roles
+### 2.6 roles
 
 | Mező | Típus | Leírás |
 |------|-------|--------|
@@ -89,7 +146,7 @@ Szervezetek (multi-tenant elkülönítés alapja).
 
 **Unique**: (organization_id, slug)
 
-### 2.5 permissions
+### 2.7 permissions
 
 | Mező | Típus | Leírás |
 |------|-------|--------|
@@ -102,7 +159,7 @@ Szervezetek (multi-tenant elkülönítés alapja).
 
 **Unique**: (module, action)
 
-### 2.6 role_permission (pivot)
+### 2.8 role_permission (pivot)
 
 | Mező | Típus | Leírás |
 |------|-------|--------|
@@ -111,7 +168,7 @@ Szervezetek (multi-tenant elkülönítés alapja).
 
 **PK**: (role_id, permission_id)
 
-### 2.7 groups
+### 2.9 groups
 
 Felhasználói csoportok (pl. műszaki csapat, vezetőség).
 
@@ -124,20 +181,41 @@ Felhasználói csoportok (pl. műszaki csapat, vezetőség).
 | created_at | TIMESTAMP | Létrehozás |
 | updated_at | TIMESTAMP | Módosítás |
 
-### 2.8 user_groups (pivot)
+### 2.10 group_membership (pivot)
+
+A csoport–tagság kapcsolat **membership alapú**: ugyanaz a user különböző szervezetekben különböző csoportba tartozhat.
 
 | Mező | Típus | Leírás |
 |------|-------|--------|
-| user_id | BIGINT FK | Felhasználó |
 | group_id | BIGINT FK | Csoport |
+| membership_id | BIGINT FK | Tagság (memberships.id) |
 
-**PK**: (user_id, group_id)
+**PK**: (group_id, membership_id)
 
-### 2.9 personal_access_tokens (Sanctum)
+### 2.11 personal_access_tokens (Sanctum — kibővítve)
 
-Laravel Sanctum automatikusan létrehozza. API tokenek tárolása.
+Laravel Sanctum tábla, kiegészítve a multi-membership és super-admin impersonation támogatásához.
 
-### 2.10 fcm_tokens
+| Mező | Típus | Leírás |
+|------|-------|--------|
+| id | BIGINT PK | Azonosító |
+| tokenable_type | VARCHAR(255) | Sanctum alap |
+| tokenable_id | BIGINT | Sanctum alap |
+| name | VARCHAR(255) | Token neve (eszköz/kliens) |
+| token | VARCHAR(64) UNIQUE | Hash token |
+| abilities | TEXT NULL | Sanctum képességek |
+| current_membership_id | BIGINT FK NULL | **Melyik tagság kontextusában aktív a token** (aktuális szervezet) |
+| context_organization_id | BIGINT FK NULL | **Super-admin impersonation**: ha a token a Platform-admin azon sessionjéhez tartozik, amelyikben egy másik szervezetbe „belépett" – itt tároljuk a cél-szervezet id-ját |
+| last_used_at | TIMESTAMP NULL | Utolsó használat |
+| expires_at | TIMESTAMP NULL | Lejárat |
+| created_at | TIMESTAMP | Létrehozás |
+| updated_at | TIMESTAMP | Módosítás |
+
+**Megjegyzés**: Ha `context_organization_id` kitöltve, a tokennel a backend a cél-szervezet kontextusát alkalmazza (mint impersonation). Ez **külön token**, nem módosítja az eredeti tokent. Kilépéskor az impersonation-tokent revokáljuk.
+
+**M4-ben** (session- és eszközkezelés) ide kerül még: `ip_address`, `user_agent`.
+
+### 2.12 fcm_tokens
 
 Push értesítésekhez szükséges Firebase token-ek.
 
@@ -911,11 +989,19 @@ Engedélyezett email domain-ek (regisztrációhoz).
 ## 15. Kapcsolati diagram (összefoglaló)
 
 ```
-organizations ─┬─► users ──► user_settings
-               │   │
-               │   ├──► roles ──► role_permission ◄── permissions
-               │   │
-               │   └──► groups ◄── user_groups
+users ──► user_settings
+  │
+  └──► memberships ◄── organizations (hierarchia: parent_id → platform/subscriber/client)
+            │
+            ├──► roles ──► role_permission ◄── permissions
+            │     (org-onként saját role-ok)
+            │
+            └──► groups ◄── group_membership
+                  (org-onként saját csoportok)
+
+personal_access_tokens ──► (current_membership_id, context_organization_id)
+
+organizations
                │
                ├─► tickets ──┬─► ticket_categories
                │             ├─► ticket_statuses

@@ -1,5 +1,12 @@
 # 03 - REST API dokumentáció
 
+> ⚠️ **Frissítve az M1–M2.5 fázisokban.** Az auth és szervezet-kezelés részeket átdolgoztuk a **User–Membership–Organization** modell szerint (lásd [11-user-membership.md](11-user-membership.md)):
+> - A login válasza memberhip-alapú, több szervezet esetén szervezet-választó lépés
+> - Új endpointok: szervezet-választás, szervezet-váltás, super-admin impersonation (enter/exit)
+> - Új szervezet-kezelés endpointok (CRUD + státusz módosítás + fa nézet szűrőkkel)
+> - A „users" endpointok valójában a saját szervezet **membership**-jeit kezelik
+> - **v1 prefix eltávolítva** az aktuális implementációban: `/api/auth/...`, `/api/organizations/...` stb. (A `v1` jelölés a jövőbeli API-verziózásra van fenntartva.)
+
 ## 1. Áttekintés
 
 ### 1.1 Alap URL
@@ -72,17 +79,26 @@ Hiba válasz:
 | Metódus | Útvonal | Leírás | Auth |
 |---------|---------|--------|------|
 | GET | /sanctum/csrf-cookie | CSRF cookie lekérése (SPA) | Nem |
-| POST | /api/v1/auth/login | Bejelentkezés | Nem |
-| POST | /api/v1/auth/logout | Kijelentkezés | Igen |
-| POST | /api/v1/auth/logout-all | Kijelentkezés minden eszközről | Igen |
-| POST | /api/v1/auth/forgot-password | Jelszó-visszaállítás kérése | Nem |
-| POST | /api/v1/auth/reset-password | Új jelszó beállítása | Nem |
-| POST | /api/v1/auth/accept-invitation | Meghívó elfogadása és jelszó beállítása | Nem |
-| GET | /api/v1/auth/user | Bejelentkezett felhasználó adatai | Igen |
+| POST | /api/auth/login | Bejelentkezés (credential ellenőrzés + membership kontextus) | Nem |
+| POST | /api/auth/select-organization | Szervezet-választás (ha >1 aktív tagság, selection_token-nel) | Nem (selection_token-nel) |
+| POST | /api/auth/switch-organization | Átváltás másik saját tagságra bejelentkezett állapotban | Igen |
+| POST | /api/auth/enter-organization | **Super-admin**: belépés egy másik szervezetbe (impersonation) | Igen (super-admin) |
+| POST | /api/auth/exit-organization | Super-admin impersonation elhagyása | Igen |
+| POST | /api/auth/logout | Kijelentkezés (aktuális token) | Igen |
+| POST | /api/auth/logout-all | Kijelentkezés minden eszközről | Igen |
+| POST | /api/auth/forgot-password | Jelszó-visszaállítás kérése | Nem |
+| POST | /api/auth/reset-password | Új jelszó beállítása | Nem |
+| POST | /api/invitations/{token}/accept | Meghívó elfogadása (új user: név + jelszó; meglévő user: csak elfogadás) | Nem |
+| GET | /api/invitations/{token} | Meghívó előnézete (kinek, milyen szervezetbe, milyen szerepkörrel) | Nem |
+| GET | /api/auth/user | Bejelentkezett felhasználó + aktuális membership adatai | Igen |
 
 ### Login részletek
 
-**POST /api/v1/auth/login**
+**POST /api/auth/login**
+
+A login válasza **két ágú**:
+- Ha a user **pontosan egy aktív tagsággal** rendelkezik (vagy van `default_organization_id`): direkt bejelentkezés, tokennel.
+- Ha a user **több aktív tagsággal** rendelkezik, nincs default: ideiglenes `selection_token` jön vissza, és a kliens a `/api/auth/select-organization` végpontra küldi a választott `membership_id`-t.
 
 ```json
 Request:
@@ -92,6 +108,7 @@ Request:
   "device_name": "iPhone 15"     // csak mobil esetén
 }
 
+// Response A - direkt bejelentkezés (egy tagság vagy van default)
 Response 200:
 {
   "data": {
@@ -100,29 +117,29 @@ Response 200:
       "name": "Kovács János",
       "email": "user@company.hu",
       "avatar_url": "/storage/avatars/uuid.jpg",
-      "role": {
-        "id": 2,
-        "name": "Diszpécser",
-        "slug": "dispatcher"
-      },
-      "organization": {
-        "id": 1,
-        "name": "ABC Üzemeltetés Kft.",
-        "slug": "abc"
-      },
-      "permissions": ["tickets.read", "tickets.create", "tickets.update", ...],
-      "settings": {
-        "theme": "dark",
-        "color_scheme": "blue",
-        "locale": "hu",
-        "items_per_page": 25,
-        "notification_email": true,
-        "notification_push": true,
-        "notification_sound": true
-      }
+      "is_super_admin": false,
+      "settings": { "theme": "dark", "locale": "hu", "items_per_page": 25, ... }
     },
+    "membership": {
+      "id": 5,
+      "role": { "id": 2, "name": "Diszpécser", "slug": "dispatcher" },
+      "organization": { "id": 1, "name": "ABC Üzemeltetés Kft.", "slug": "abc", "type": "subscriber" },
+      "permissions": ["tickets.read", "tickets.create", ...]
+    },
+    "memberships_count": 1,
     "token": "1|abc123def456..."   // csak mobil módban
   }
+}
+
+// Response B - szervezet-választás szükséges
+Response 200:
+{
+  "requires_organization_selection": true,
+  "selection_token": "sel_xyz789...",
+  "memberships": [
+    { "id": 5, "organization": {"id": 1, "name": "ABC", "type": "subscriber"}, "role": {"name": "Admin"} },
+    { "id": 8, "organization": {"id": 3, "name": "XY Kft.", "type": "client"},  "role": {"name": "Diszpécser"} }
+  ]
 }
 
 Response 401:
@@ -136,33 +153,114 @@ Response 429:
 }
 ```
 
+### Szervezet-választás
+
+**POST /api/auth/select-organization**
+
+```json
+Request:
+{
+  "selection_token": "sel_xyz789...",
+  "membership_id": 5,
+  "remember_as_default": false   // ha true: beállítja default_organization_id-nak
+}
+
+Response 200:
+{
+  "data": { "user": {...}, "membership": {...}, "token": "..." }
+}
+```
+
+### Szervezet-váltás (bejelentkezett állapotban)
+
+**POST /api/auth/switch-organization** — `{ "membership_id": 8 }` — új tokent ad vissza az új szervezet kontextusához.
+
+### Super-admin impersonation
+
+**POST /api/auth/enter-organization** — `{ "organization_id": 12 }` — szuper-admin belép egy subscriber/client szervezetbe. A válaszban új token `context_organization_id = 12` mezővel. Minden további API-hívás erre a tokenre az adott szervezet kontextusában fut.
+
+**POST /api/auth/exit-organization** — az impersonation token revokálása, vissza az eredetire.
+
 ---
 
-## 3. Felhasználó-kezelés végpontok
+## 3. Profil és saját beállítások (user-szintű)
+
+A user-szintű adatok (név, email, avatar, globális beállítások) függetlenek az aktuális szervezettől.
 
 | Metódus | Útvonal | Leírás | Jogosultság |
 |---------|---------|--------|-------------|
-| GET | /api/v1/profile | Saját profil | Bejelentkezve |
-| PUT | /api/v1/profile | Profil módosítása | Bejelentkezve |
-| PUT | /api/v1/profile/password | Jelszó módosítása | Bejelentkezve |
-| POST | /api/v1/profile/avatar | Profilkép feltöltése | Bejelentkezve |
-| GET | /api/v1/settings | Beállítások lekérése | Bejelentkezve |
-| PUT | /api/v1/settings | Beállítások mentése | Bejelentkezve |
-| GET | /api/v1/users | Felhasználók listája | users.read |
-| POST | /api/v1/users | Felhasználó meghívása | users.create |
-| GET | /api/v1/users/{id} | Felhasználó adatai | users.read |
-| PUT | /api/v1/users/{id} | Felhasználó módosítása | users.edit |
-| DELETE | /api/v1/users/{id} | Felhasználó törlése | users.edit |
-| PATCH | /api/v1/users/{id}/toggle-active | Aktiválás/deaktiválás | users.deactivate |
+| GET | /api/profile | Saját profil | Bejelentkezve |
+| PUT | /api/profile | Profil módosítása (név, phone) | Bejelentkezve |
+| PUT | /api/profile/password | Jelszó módosítása (régi + új) | Bejelentkezve |
+| POST | /api/profile/avatar | Profilkép feltöltése | Bejelentkezve |
+| PUT | /api/profile/email | Email-cím változtatás indítása (**M6**) | Bejelentkezve |
+| GET | /api/profile/memberships | Saját tagságok listája | Bejelentkezve |
+| POST | /api/profile/memberships/{id}/leave | Kilépés egy szervezetből (**M7**) | Bejelentkezve |
+| DELETE | /api/profile | Saját fiók megszüntetése kérése (**M7**, 30 napos grace) | Bejelentkezve |
+| GET | /api/settings | Felhasználói beállítások lekérése | Bejelentkezve |
+| PUT | /api/settings | Beállítások mentése | Bejelentkezve |
 
-### Felhasználó lista szűrők
+### 3.1 2FA végpontok (**M5**)
+
+| Metódus | Útvonal | Leírás |
+|---------|---------|--------|
+| POST | /api/profile/2fa/enable | TOTP secret generálás + QR kód + ideiglenes állapot |
+| POST | /api/profile/2fa/confirm | TOTP kód megerősítés, aktiválás |
+| POST | /api/profile/2fa/disable | Kikapcsolás (jelszó megerősítéssel) |
+| POST | /api/profile/2fa/recovery-codes/regenerate | Új recovery kód-készlet |
+| GET | /api/profile/2fa/recovery-codes | Letöltés/megtekintés |
+| POST | /api/auth/2fa/challenge | Login utáni 2FA kód ellenőrzés |
+
+### 3.2 Session- és eszközkezelés (**M4**)
+
+| Metódus | Útvonal | Leírás |
+|---------|---------|--------|
+| GET | /api/profile/sessions | Aktív sessionök / tokenek listája (eszköz, IP, utolsó használat) |
+| DELETE | /api/profile/sessions/{id} | Egy távoli session kijelentkeztetése |
+| DELETE | /api/profile/sessions/others | Minden más eszköz kijelentkeztetése |
+| GET | /api/profile/login-history | Bejelentkezési előzmények (**M8**) |
+
+---
+
+## 4. Membership-kezelés végpontok (szervezet-admin)
+
+Ezek az endpointok az **aktuális szervezet** saját tagságait kezelik — nem user-adatokat.
+Az URL marad `/api/users/...` a történelmi nevezéktan miatt, de **szemantikailag mindegyik egy membershipre hivatkozik.**
+
+| Metódus | Útvonal | Leírás | Jogosultság |
+|---------|---------|--------|-------------|
+| GET | /api/users | Aktuális szervezet tagságainak listája (user + role + is_active) | users.read |
+| POST | /api/users | Új tag meghívása (email, role_id; ha email létezik: csak membership) | users.create |
+| GET | /api/users/{id} | Tagság részletei | users.read |
+| PUT | /api/users/{id} | Tagság szerkesztése (role, csoportok — nem user-adat) | users.edit |
+| DELETE | /api/users/{id} | Tagság törlése (soft delete) | users.edit |
+| PATCH | /api/users/{id}/toggle-active | Tagság aktiválás/deaktiválás | users.deactivate |
+| POST | /api/users/{id}/resend-invitation | Meghívó újraküldése | users.create |
+
+### Tagság lista szűrők
 
 | Paraméter | Típus | Leírás |
 |-----------|-------|--------|
-| role | string | Szerepkör slug szerinti szűrés |
+| role_id | int | Szerepkör szerinti szűrés |
 | group_id | int | Csoport szerinti szűrés |
 | is_active | boolean | Aktív/inaktív szűrés |
-| search | string | Név vagy email keresés |
+| status | string | pending / active / inactive |
+| search | string | Név vagy email keresés (user.name, user.email) |
+
+---
+
+## 4b. Szervezet-kezelés végpontok (super-admin / subscriber-admin)
+
+| Metódus | Útvonal | Leírás | Jogosultság |
+|---------|---------|--------|-------------|
+| GET | /api/admin/organizations-tree | Szervezet fa (Platform → Subscriber → Client) szűrőkkel (search, type, status) | canManageOrganizations |
+| GET | /api/organizations | Lapos szervezet-lista (szűrőkkel) | canManageOrganizations |
+| GET | /api/organizations/{id} | Szervezet részletei | canManageOrganizations |
+| POST | /api/organizations | Új szervezet (subscriber vagy client) | canManageOrganizations |
+| PUT | /api/organizations/{id} | Szervezet módosítása | canManageOrganizations |
+| POST | /api/organizations/{id}/status | Státusz váltása: `{status: 'active'\|'inactive'\|'terminated'}` | canManageOrganizations |
+
+**`canManageOrganizations`** = super-admin VAGY subscriber-admin (a saját szervezetére és annak client-leszármazottaira).
 
 ---
 

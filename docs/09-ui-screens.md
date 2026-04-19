@@ -1,5 +1,7 @@
 # 09 - UI képernyők és navigáció
 
+> ⚠️ **Frissítve az M1–M2.5 fázisokban.** Az auth-flow kibővült (szervezet-választó oldal, lockscreen + inaktivitási figyelmeztetés), a fejlécben szervezet-váltó jelent meg, az admin menüben pedig megjelent a szervezet-kezelés (super-admin + subscriber-admin). Lásd [11-user-membership.md](11-user-membership.md) a teljes flow-ért.
+
 ## 1. Általános elrendezés
 
 ### 1.1 Layout struktúra (Web)
@@ -47,11 +49,13 @@
 | Elem | Leírás |
 |------|--------|
 | Hamburger menü (☰) | Oldalsáv ki-/becsukása |
-| Logo | Szervezet logó + alkalmazás név |
+| Logo | Aktuális szervezet logó + alkalmazás név |
+| Szervezet-váltó | Aktuális szervezet neve mellett legördülő (csak ha a user > 1 szervezetnek tagja vagy super-admin impersonation aktív). Lista: saját tagságok + super-admin esetén „Belépés másik szervezetbe…" |
+| Impersonation-sáv | Ha super-admin impersonation aktív, feltűnő figyelmeztető sáv: „Belépve: XY Kft. — [Kilépés]" |
 | Keresés mező | Globális keresés (Ctrl+K gyorsbillentyű) |
 | Értesítés csengő (🔔) | Olvasatlan értesítések száma + legördülő lista |
 | Üzenet ikon (✉) | Olvasatlan üzenetek száma + legördülő lista |
-| Profil avatar | Legördülő: Profil, Beállítások, Kijelentkezés |
+| Profil avatar | Legördülő: Profil, Beállítások, Biztonság (2FA, jelszó, sessionök — M4/M5), Kijelentkezés |
 
 ### 1.4 Oldalsáv
 
@@ -96,8 +100,24 @@
 
 ### 2.3 Meghívó elfogadás
 
-- Token ellenőrzés
-- Jelszó beállítás (+ megerősítés)
+A meghívó token ellenőrzése után a képernyő **két ágra** bomlik:
+
+- **Új user** (az email még nem létezik a rendszerben): név + jelszó + megerősítés megadása, majd közvetlen bejelentkezés az új szervezetbe.
+- **Meglévő user** (az email már bejelentkezett fiókhoz tartozik): csak egy „Meghívó elfogadása" gomb, autentikáció után azonnal tagság jön létre; ha nincs bejelentkezve, login lépés az eredeti fiókkal.
+
+### 2.4 Szervezet-választó (select-organization)
+
+Login után, ha a usernek több aktív tagsága van és nincs `default_organization_id`, ide kerül. Lista-nézet:
+- Minden tagság egy kártya: szervezet neve, típusa (Platform/Subscriber/Client badge), szerepkör, státusz-dot
+- Kattintás → folytatja a belépést az adott tagság kontextusába
+- Jelölőnégyzet: „Emlékezz erre, mint alapértelmezett"
+- Super-admin esetén extra gomb: „Belépés másik szervezetbe…" (impersonation kereső)
+
+### 2.5 Lockscreen + inaktivitási figyelmeztetés
+
+- **Warning modal** (inaktivitás vége előtt 30 mp-cel): countdown + „Maradjak bent" gomb
+- **Lockscreen**: teljes képernyő, user neve + kezdőbetűs avatar, csak jelszó megadás a feloldáshoz (nem new login)
+- Minden API-hívás kiváltja a pause-t a timeren
 - Sikeres aktiválás visszaigazolás
 
 ### 2.4 Lockscreen

@@ -1,5 +1,12 @@
 # 01 - Rendszer-architektúra
 
+> ⚠️ **Frissítve az M1–M2.5 fázisokban.**
+> - User-modell a **User–Membership–Organization** architektúra szerint (lásd [11-user-membership.md](11-user-membership.md)) — új Model: `Membership`, kibővített `PersonalAccessToken`.
+> - Szervezetek hierarchikusak (Platform → Subscriber → Client) és státusz-kezeltek (active/inactive/terminated).
+> - Super-admin impersonation flow (token `context_organization_id` mezővel).
+> - Fejlesztői környezet: **Docker** (PHP 8.4-fpm, MySQL 8, Nginx, phpMyAdmin) — nem Laragon/XAMPP.
+> - Frontend build: **Vite 6**, **Tailwind 3** (nem Tailwind 4, a native binding-problémák miatt).
+
 ## 1. Áttekintés
 
 A Previse v2 egy moduláris bejelentés-, feladat-, hibajegy- és projektkezelő rendszer, amelyet épület-üzemeltetők és karbantartó/kivitelező cégek számára fejlesztünk. A rendszer három klienst szolgál ki egyetlen REST API-n keresztül: webalkalmazás (Vue.js SPA), Android alkalmazás és iOS alkalmazás (Flutter).
@@ -127,6 +134,9 @@ previse-api/
 │   │       └── ...
 │   ├── Models/
 │   │   ├── User.php
+│   │   ├── Membership.php
+│   │   ├── Organization.php
+│   │   ├── PersonalAccessToken.php   # kibővített Sanctum (current_membership_id, context_organization_id)
 │   │   ├── Ticket.php
 │   │   ├── Task.php
 │   │   ├── Project.php
@@ -405,10 +415,12 @@ previse_mobile/
 
 ### 7.2 Multi-tenancy megközelítés
 
-A rendszer **szervezet-alapú multi-tenancy**-t alkalmaz egyetlen adatbázison belül:
+A rendszer **szervezet-alapú multi-tenancy**-t alkalmaz egyetlen adatbázison belül, **membership-kontextusban**:
+- A bejelentkezett user aktuális szervezete a tokenből (`personal_access_tokens.current_membership_id` vagy super-admin esetén `context_organization_id`) származik
 - Minden fő entitás tartalmaz egy `organization_id` foreign key-t
-- Middleware szűri a lekérdezéseket a bejelentkezett felhasználó szervezetéhez
-- Global scope biztosítja, hogy egy szervezet csak a saját adatait lássa
+- Middleware / Global Scope szűri a lekérdezéseket az aktuális szervezetre
+- Super-admin impersonation esetén a `context_organization_id` adja a scope-ot (audit-naplózott)
+- Szervezetek **hierarchikusak** (Platform → Subscriber → Client) — a subscriber-admin láthatja/kezelheti a client-leszármazottait
 
 ## 8. Biztonság
 
@@ -434,7 +446,7 @@ A rendszer **szervezet-alapú multi-tenancy**-t alkalmaz egyetlen adatbázison b
 
 ## 10. Fejlesztési környezet
 
-- **Lokális fejlesztés**: Laravel Sail (Docker) vagy Laragon/XAMPP
+- **Lokális fejlesztés**: saját **Docker Compose** stack (PHP 8.4-fpm, MySQL 8, Nginx, phpMyAdmin, Mailpit az M3-tól)
 - **Verziókezelés**: Git (GitHub/GitLab)
 - **API tesztelés**: PHPUnit + Postman/Insomnia
 - **Frontend tesztelés**: Vitest + Vue Test Utils

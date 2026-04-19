@@ -1,5 +1,7 @@
 # 05 - Core modulok specifikációja
 
+> ⚠️ **Frissítve az M1–M2.5 fázisokban.** A Felhasználó-kezelés modul szét lett választva **user-szintű** (személy) és **membership-szintű** (szervezeti tagság) műveletekre. Lásd [11-user-membership.md](11-user-membership.md) és a frissített [04-auth-rbac.md](04-auth-rbac.md) dokumentumokat.
+
 ## 1. Auth modul
 
 Részletes leírás: [04-auth-rbac.md](04-auth-rbac.md)
@@ -22,61 +24,54 @@ Részletes leírás: [04-auth-rbac.md](04-auth-rbac.md)
 
 ---
 
-## 2. Felhasználó-kezelés modul
+## 2. Felhasználó- és tagságkezelés modul
 
 ### 2.1 Funkciók
 
-**Felhasználói profil:**
+A modul kétszintű. Egy **user (személy)** adatai függetlenek attól, hány szervezetnek tagja; a **membership (tagság)** szervezetspecifikus: role, csoport, aktivitás.
+
+**User-szintű (saját profil):**
 - Név, email, telefonszám megjelenítése és szerkesztése
-- Profilkép feltöltése (max 2MB, JPEG/PNG)
-- Jelszó módosítás (régi jelszó megadásával)
+- Profilkép feltöltése (max 2 MB, JPEG/PNG)
+- Jelszó módosítás (régi jelszó megadásával) — **M4**
+- Email-cím változtatás (kettős megerősítés) — **M6**
+- Aktív sessionök listája és revokálása — **M4**
+- 2FA be/kikapcsolás — **M5**
+- Saját tagságok listája (melyik szervezeteknek vagyok tagja, milyen szerepkörrel)
+- Kilépés szervezetből — **M7**
+- Saját fiók megszüntetése (30 napos grace) — **M7**
 
-**Admin felhasználó-kezelés:**
-- Felhasználók listája (szűrhető: név, email, szerepkör, státusz, csoport)
-- Új felhasználó meghívása (név, email, szerepkör, csoport megadásával)
-- Felhasználó szerkesztése (név, szerepkör, csoport módosítása)
-- Felhasználó aktiválása / deaktiválása
-- Felhasználó törlése (soft delete)
+**Membership-szintű (szervezet-admin):**
+- Tagságok listája az aktuális szervezetben (szűrhető: név, email, szerepkör, státusz, csoport)
+- Új tag meghívása (email + role; ha az email már létezik: csak új membership)
+- Tagság szerkesztése (role, csoport módosítása)
+- Tagság aktiválás / deaktiválás
+- Tagság törlése (soft delete)
+- Meghívó újraküldése
+- Csoportok (org-szintű): létrehozás/szerkesztés/törlés, tagok hozzáadása/eltávolítása
 
-**Felhasználói csoportok:**
-- Csoportok listája és kezelése (létrehozás, szerkesztés, törlés)
-- Felhasználók hozzáadása/eltávolítása csoportokból
-- Egy felhasználó több csoportba is tartozhat
-
-### 2.2 Felhasználói beállítások
+### 2.2 Felhasználói beállítások (user_settings)
 
 | Beállítás | Típus | Alapértelmezés | Leírás |
 |-----------|-------|----------------|--------|
 | theme | select | light | Téma (light / dark) |
-| color_scheme | select | blue | Színséma |
-| locale | select | hu | Nyelv |
+| color_scheme | select | teal | Színséma (elsődleges: teal) |
+| locale | select | hu | Nyelv (hu / en) |
 | timezone | select | Europe/Budapest | Időzóna |
 | items_per_page | select | 25 | Lista elemek száma (10, 25, 50, 100) |
-| default_page | select | dashboard | Bejelentkezés utáni oldal |
+| default_organization_id | select | NULL | Alapértelmezett szervezet — ha be van állítva, a login utáni szervezet-választó lépést átugrjuk |
+| lockscreen_timeout_minutes | int | 30 | Lockscreen inaktivitási időkorlát percben (tesztkörnyezetben 3) |
 | notification_email | boolean | true | Email értesítések |
 | notification_push | boolean | true | Push értesítések |
 | notification_sound | boolean | true | Értesítési hangjelzés |
 
 ### 2.3 API végpontok
 
-| Metódus | Útvonal | Leírás |
-|---------|---------|--------|
-| GET | /api/v1/users | Felhasználók listája |
-| POST | /api/v1/users | Új felhasználó meghívása |
-| GET | /api/v1/users/{id} | Felhasználó adatai |
-| PUT | /api/v1/users/{id} | Felhasználó módosítása |
-| DELETE | /api/v1/users/{id} | Felhasználó törlése |
-| PATCH | /api/v1/users/{id}/toggle-active | Aktiválás/deaktiválás |
-| GET | /api/v1/profile | Saját profil |
-| PUT | /api/v1/profile | Profil módosítása |
-| PUT | /api/v1/profile/password | Jelszó módosítása |
-| POST | /api/v1/profile/avatar | Profilkép feltöltése |
-| GET | /api/v1/settings | Beállítások lekérése |
-| PUT | /api/v1/settings | Beállítások mentése |
-| GET | /api/v1/groups | Csoportok listája |
-| POST | /api/v1/groups | Új csoport |
-| PUT | /api/v1/groups/{id} | Csoport módosítása |
-| DELETE | /api/v1/groups/{id} | Csoport törlése |
+Részletes felsorolás: [03-api-endpoints.md §3–§4](03-api-endpoints.md).
+
+- **User-szintű**: `/api/profile`, `/api/profile/password`, `/api/profile/avatar`, `/api/profile/memberships`, `/api/settings` (és az M4–M7 fázisokban: `/api/profile/sessions`, `/api/profile/2fa/*`, `/api/profile/email`, `/api/profile` DELETE).
+- **Membership-szintű (szervezet kontextusban)**: `/api/users` (a tagságokat adja vissza!), `/api/users/{id}`, `/api/users/{id}/toggle-active`, `/api/users/{id}/resend-invitation`.
+- **Csoportok**: `/api/groups`, `/api/groups/{id}`, `/api/groups/{id}/members`.
 
 ---
 

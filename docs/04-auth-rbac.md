@@ -1,5 +1,12 @@
 # 04 - Autentikáció és jogosultságkezelés
 
+> ⚠️ **Frissítve az M1–M2.5 fázisokban.** Az autentikáció és RBAC a **User–Membership–Organization** modellre épül (lásd [11-user-membership.md](11-user-membership.md)):
+> - Egy user több szervezetben is tag lehet, membershipenként külön szerepkörrel
+> - A login után több tagság esetén szervezet-választó lépés
+> - Super-admin (Platform adminja) külön impersonation-flow-val léphet más szervezetekbe
+> - A szerepkörök és jogosultságok **szervezetspecifikusak** (minden orgnak saját role-készlete)
+> - A tervezett, de még nem implementált auth-funkciók (2FA, email-change, fiók-törlés, session-kezelés, audit log) a következő fázisokban készülnek — lásd M3–M8.
+
 ## 1. Autentikáció
 
 ### 1.1 Technológia
@@ -8,51 +15,53 @@
 - **SPA mód (web)**: Cookie-alapú session autentikáció CSRF védelemmel
 - **Token mód (mobil)**: Bearer token autentikáció
 
-### 1.2 Regisztráció
+### 1.2 Meghívó-alapú tagság létrehozás
 
-A regisztráció **meghívó-alapú** (nem nyilvános).
+A regisztráció **meghívó-alapú** (nem nyilvános). A meghívó **mindig egy membership-hez** tartozik, nem közvetlenül userhez.
 
-**Folyamat:**
-1. Admin létrehozza a felhasználót a rendszerben (név, email, szerepkör)
-2. Rendszer generál egy egyedi meghívó tokent
+**Folyamat (két ág):**
+
+**A) Új user meghívása** (az email cím még nem létezik a rendszerben):
+1. Admin kitölti a meghívó űrlapot (email, role_id)
+2. Rendszer létrehoz egy `users` rekordot (password = NULL, email_verified_at = NULL) és egy `memberships` rekordot `invitation_token`-nel
 3. Email küldés a felhasználónak a meghívó linkkel
-4. Felhasználó a linken beállítja a jelszavát
-5. Fiók aktiválódik
+4. Felhasználó a linken megadja a **nevét + jelszavát**, a fiók aktiválódik és a tagság elfogadásra kerül
 
-**Email domain korlátozás:**
+**B) Meglévő user új szervezetbe hívása** (az email már létezik):
+1. Admin kitölti a meghívó űrlapot (email, role_id)
+2. Rendszer **csak egy új `memberships` rekordot** hoz létre (a user marad)
+3. Email küldés a felhasználónak, a link az új tagság elfogadására mutat
+4. Felhasználó bejelentkezett állapotban (vagy login után) egy kattintással elfogadja — nem kell újra jelszót adnia
+
+**Email domain korlátozás (opcionális, szervezetenként):**
 - Szervezetenként konfigurálható engedélyezett domain lista
-- Regisztráció csak az engedélyezett domain-ekről lehetséges
-- Admin felületen kezelhető az `allowed_domains` tábla
+- Meghívás csak az engedélyezett domain-ekről megadott email-re lehetséges
+- Admin felületen kezelhető (későbbi fázis)
 
 ### 1.3 Bejelentkezés
 
-**POST /api/v1/auth/login**
+A login a credential (email + jelszó) ellenőrzésen kívül kezeli a **tagság-választás** lépését is. Részletes válaszformátumok: [03-api-endpoints.md §2 Auth végpontok](03-api-endpoints.md).
 
-```json
-Request:
-{
-  "email": "user@company.hu",
-  "password": "********"
-}
+**Röviden:**
+- 1 aktív tagság (vagy van `default_organization_id` a user_settings-ben): közvetlen login tokennel.
+- Több aktív tagság, nincs default: a kliens ideiglenes `selection_token`-t kap, és a `/api/auth/select-organization` végponton kiválasztja a tagságot.
+- Nincs aktív tagság: hibaüzenet.
 
-Response (200):
-{
-  "data": {
-    "user": {
-      "id": 1,
-      "name": "Kovács János",
-      "email": "user@company.hu",
-      "role": "dispatcher",
-      "organization": { "id": 1, "name": "ABC Kft." }
-    },
-    "token": "1|abc123..." // csak mobil módban
-  }
-}
-```
+**SPA mód**: a Vue.js app először lekéri a CSRF cookie-t (`GET /sanctum/csrf-cookie`), majd a login kérés session cookie-t + tokent állít be.
 
-**SPA mód**: A Vue.js app először lekéri a CSRF cookie-t (`GET /sanctum/csrf-cookie`), majd a login kérés session cookie-t állít be.
+**Mobil mód**: a Flutter app bearer tokent kap, amit SecureStorage-ben tárol.
 
-**Mobil mód**: A Flutter app bearer tokent kap, amit SecureStorage-ben tárol.
+**Token tartalma:**
+- `current_membership_id`: melyik tagság kontextusában aktív
+- `context_organization_id`: super-admin impersonation esetén a cél-szervezet id-ja
+
+### 1.3.1 Szervezet-váltás és super-admin impersonation
+
+- **Switch** (saját tagságok között): `POST /api/auth/switch-organization` — új tokent ad vissza az új tagság kontextusához; a régi token revokálódik.
+- **Enter** (super-admin belép idegen szervezetbe): `POST /api/auth/enter-organization` — külön impersonation-tokent generál `context_organization_id`-val, az eredeti token érintetlen marad.
+- **Exit** (impersonation elhagyása): `POST /api/auth/exit-organization` — az impersonation-token revokálódik.
+
+A super-admin impersonation audit célokra mindig naplózható (ki, mikor, melyik szervezetbe lépett be).
 
 ### 1.4 Jelszó-visszaállítás
 
@@ -68,10 +77,11 @@ Response (200):
 
 ### 1.5 Session kezelés
 
-- **Idle timeout**: Konfigurálható inaktivitási időkorlát (alapértelmezett: 30 perc)
-- **Lockscreen**: Frontend implementáció - inaktivitás után a felhasználónak újra meg kell adnia a jelszavát
-- **Egyidejű session-ök**: Engedélyezve (több eszközről bejelentkezés)
-- **Token revokáció**: Kijelentkezéskor a token törlődik
+- **Idle timeout**: Konfigurálható inaktivitási időkorlát felhasználónként (`user_settings.lockscreen_timeout_minutes`, alapértelmezett 30 perc; tesztkörnyezetben 3 perc)
+- **Lockscreen**: Frontend implementáció — inaktivitás után a felhasználónak újra meg kell adnia a jelszavát, a sessionje közben életben marad
+- **Warning modal**: a lockscreen előtt 30 másodperccel figyelmeztető modal, countdown-nal
+- **Egyidejű session-ök**: Engedélyezve (több eszközről bejelentkezés); aktív sessionök listázása + egyedi revoke az **M4** fázisban
+- **Token revokáció**: Kijelentkezéskor a token törlődik; super-admin impersonation-token kilépéskor szintén revokálódik
 
 ### 1.6 Kijelentkezés
 
@@ -85,15 +95,18 @@ Response (200):
 
 ### 2.1 Architektúra
 
-A rendszer **szerepkör-alapú hozzáférés-vezérlést (RBAC)** alkalmaz:
+A rendszer **szerepkör-alapú hozzáférés-vezérlést (RBAC)** alkalmaz, **membership-kontextusban**:
 
 ```
-Felhasználó ──► Szerepkör ──► Engedélyek (modul + művelet)
+User ──► Membership ──► Role ──► Permissions (modul + művelet)
+          (user + org + role)
 ```
 
-- Minden felhasználónak pontosan egy szerepköre van
-- Minden szerepkörhöz engedélyek rendelhetők
-- Az engedélyek modul + művelet kombinációk
+- Egy user több szervezetben is tag lehet (több `memberships` rekord)
+- Minden tagsághoz **pontosan egy** szerepkör tartozik
+- A szerepkörök és a role-permission mátrix **szervezetenként** vannak definiálva — minden új szervezet seederből kap default szerepköröket (admin, dispatcher, user, recorder, maintainer)
+- Az engedélyek globális katalógus (`permissions` tábla, modul + művelet), de a role-hoz rendelés szervezetspecifikus
+- Az aktuális tagság a tokenből (`current_membership_id`) vagy super-admin impersonation esetén a `context_organization_id`-ból derül ki
 
 ### 2.2 Alapértelmezett szerepkörök
 
@@ -294,10 +307,16 @@ Az admin felületen a jogosultsági mátrix vizuálisan szerkeszthető:
 
 ### 3.2 Adatélet-ciklus
 
-- Felhasználók csak a saját szervezetük adatait látják
-- Admin csak a saját szervezetét kezelheti
-- Szuper-admin (jövőbeli): több szervezet kezelése
+- Felhasználók csak a saját tagságuk szervezetének adatait látják (a token `current_membership_id`-ja alapján)
+- Szervezet-admin (subscriber vagy client szintű) csak a saját szervezetét kezelheti
+- **Subscriber-admin** extra joga: client-leszármazott szervezeteket hozhat létre és kezelhet a saját subscriber-szervezete alatt
+- **Super-admin** (Platform szervezet admin tagja, `users.is_super_admin = true`): minden szervezetet lát; impersonation flow-val léphet be bármely szervezetbe (lásd 1.3.1)
 
-### 3.3 Szervezet regisztráció
+### 3.3 Szervezet hierarchia
 
-Kezdetben manuálisan, az adatbázisban hozzuk létre a szervezeteket. Később önkiszolgáló regisztráció is lehetséges.
+Három szintű hierarchia `organizations.parent_id` + `organizations.type` alapján:
+- **Platform** (`type=platform`, `parent_id=NULL`): egy darab, a rendszer gyökere, itt laknak a super-adminok
+- **Subscriber** (`type=subscriber`, `parent_id=Platform.id`): előfizetők, a termék valódi vásárlói
+- **Client** (`type=client`, `parent_id=Subscriber.id`): a subscriberek ügyfelei (pl. épületek, amiket üzemeltetnek)
+
+A Platform szervezetet a rendszer alapítása során seederből hozzuk létre. Subscribereket a super-admin hoz létre; clienteket a super-admin vagy a subscriber saját adminja.
