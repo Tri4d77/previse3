@@ -27,6 +27,8 @@ class UserResource extends JsonResource
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'pending_email' => $this->pending_email,
             'two_factor_enabled' => $this->hasTwoFactorEnabled(),
+            'scheduled_deletion_at' => $this->scheduled_deletion_at?->toIso8601String(),
+            'days_until_deletion' => $this->daysUntilDeletion(),
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),
             'settings' => $this->when(

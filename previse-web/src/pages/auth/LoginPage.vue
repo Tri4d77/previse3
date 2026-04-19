@@ -21,6 +21,9 @@ const twoFactorCode = ref('')
 const useRecoveryCode = ref(false)
 const recoveryCode = ref('')
 
+// Deletion decision state (pending account deletion)
+const deletionDecisionMode = ref(false)
+
 async function handleLogin() {
   error.value = ''
   loading.value = true
@@ -28,7 +31,10 @@ async function handleLogin() {
   try {
     const response = await authStore.login({ email: email.value, password: password.value })
 
-    if ('requires_two_factor' in response) {
+    if ('requires_deletion_decision' in response) {
+      // Fiók törlésre ütemezve: a user csak visszavonhat vagy kiléphet
+      deletionDecisionMode.value = true
+    } else if ('requires_two_factor' in response) {
       // 2FA challenge szükséges → átváltunk 2FA módba
       twoFactorMode.value = true
     } else if ('requires_organization_selection' in response) {
@@ -81,6 +87,35 @@ function cancelTwoFactor() {
   useRecoveryCode.value = false
   error.value = ''
   authStore.clearAuth()
+}
+
+async function handleCancelDeletion() {
+  loading.value = true
+  error.value = ''
+  try {
+    // A cancel endpoint egy teljes login választ ad vissza (token + user),
+    // hogy ne kelljen még egyszer bejelentkezni.
+    const data = await authStore.cancelDeletionAndLogin()
+    deletionDecisionMode.value = false
+
+    if ('requires_organization_selection' in data) {
+      router.push({ name: 'select-organization' })
+    } else {
+      router.push({ name: 'dashboard' })
+    }
+  } catch (err: any) {
+    error.value = err.response?.data?.message ?? 'Sikertelen.'
+  } finally {
+    loading.value = false
+  }
+}
+
+function exitDeletionDecision() {
+  deletionDecisionMode.value = false
+  authStore.clearAuth()
+  email.value = ''
+  password.value = ''
+  error.value = ''
 }
 </script>
 
@@ -190,6 +225,40 @@ function cancelTwoFactor() {
               </button>
             </div>
           </form>
+
+          <!-- Deletion decision képernyő -->
+          <div v-else-if="deletionDecisionMode" class="space-y-5">
+            <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p class="text-sm text-red-900 dark:text-red-200">
+                A fiókod törlésre van ütemezve
+                <strong v-if="authStore.daysUntilDeletion">
+                  — {{ authStore.daysUntilDeletion }} nap múlva
+                </strong>
+                véglegesen törlődik.
+              </p>
+              <p class="text-xs text-red-800 dark:text-red-300 mt-2">
+                Bejelentkezni csak ezen a visszavonó felületen tudsz. Ha nem vonod vissza,
+                a lejárat után a fiókod anonimizálódik (a neved viszont megmarad).
+              </p>
+            </div>
+
+            <button
+              @click="handleCancelDeletion"
+              :disabled="loading"
+              class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium rounded-lg transition-all"
+            >
+              {{ loading ? t('common.loading') : 'Fiók-törlés visszavonása' }}
+            </button>
+
+            <button
+              @click="exitDeletionDecision"
+              class="w-full py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Kilépés
+            </button>
+
+            <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+          </div>
 
           <form v-else @submit.prevent="handleLogin" class="space-y-5">
             <!-- Email -->

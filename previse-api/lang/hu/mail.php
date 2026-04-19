@@ -76,6 +76,21 @@ return [
             'heading' => 'Email-cím módosítva',
             'intro' => 'A fiókod email-címe sikeresen módosult.',
         ],
+        'account_deletion_scheduled' => [
+            'subject' => 'Fiók törlése ütemezve — :app',
+            'heading' => 'Fiókodat 30 nap múlva véglegesen töröljük',
+            'intro' => 'Kérted a Previse fiókod megszüntetését. A fiók <strong>30 nap múlva</strong> véglegesen törlődik. Ez idő alatt a belépést letiltottuk, de ha meggondolnád magad, be tudsz jelentkezni és a „Törlés visszavonása" gombbal megszakíthatod a folyamatot.',
+        ],
+        'account_deletion_cancelled' => [
+            'subject' => 'Fiók-törlés visszavonva — :app',
+            'heading' => 'Fiók-törlés visszavonva',
+            'intro' => 'A fiókod törlési folyamatát visszavontad. A fiókod normál módon használható.',
+        ],
+        'admin_left_organization' => [
+            'subject' => 'A szervezet adminja távozott — :app',
+            'heading' => 'Admin távozott a szervezetből',
+            'intro' => 'A(z) :organization szervezet utolsó adminja (:admin_name) kilépett vagy törölte a fiókját. Az admin feladatokat mostantól a Platform szuper-admin látja el — fordulj hozzá, ha valamit kezelni kell.',
+        ],
 
         'labels' => [
             'time' => 'Időpont',

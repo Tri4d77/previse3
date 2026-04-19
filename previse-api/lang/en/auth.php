@@ -48,4 +48,15 @@ return [
     'email_change_invalid' => 'Invalid or already used confirmation link.',
     'email_change_expired' => 'The confirmation link has expired. Please restart the change process.',
     'email_change_nothing_pending' => 'No email change in progress.',
+
+    // M7 - Leave organization + account deletion
+    'membership_not_found' => 'Membership not found.',
+    'left_organization' => 'Successfully left the organization.',
+    'cannot_leave_last_membership' => 'This is your only active membership. If you really want to leave, delete your account under Profile → Security.',
+    'cannot_leave_last_super_admin' => 'You are the only super-admin. Promote another super-admin before leaving the Platform organization.',
+    'cannot_delete_last_super_admin' => 'You are the only super-admin. Create another super-admin before deleting your account.',
+    'account_deletion_scheduled' => 'Account scheduled for deletion. Within 30 days you can sign in with the same email and cancel the process, otherwise it will be permanently removed.',
+    'account_deletion_cancelled' => 'Account deletion cancelled.',
+    'account_already_scheduled_for_deletion' => 'The account is already scheduled for deletion.',
+    'account_not_scheduled_for_deletion' => 'The account is not scheduled for deletion.',
 ];

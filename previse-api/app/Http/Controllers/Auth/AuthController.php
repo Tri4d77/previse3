@@ -76,17 +76,6 @@ class AuthController extends Controller
             ]);
         }
 
-        // Aktív tagságok
-        $activeMemberships = $user->activeMemberships()
-            ->with(['organization', 'role'])
-            ->get();
-
-        if ($activeMemberships->isEmpty()) {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.no_active_membership')],
-            ]);
-        }
-
         RateLimiter::clear($throttleKey);
 
         // Utolsó bejelentkezés
@@ -94,6 +83,24 @@ class AuthController extends Controller
             'last_login_at' => now(),
             'last_login_ip' => $request->ip(),
         ]);
+
+        // Fiók törlésre ütemezve → speciális token, csak a cancel endpointhoz
+        // (a scheduled deletion check MEGELŐZI a membership ellenőrzést, mert
+        //  a pending deletion user-nek nincsenek aktív tagságai, de bejelenkezhet a visszavonáshoz)
+        if ($user->isScheduledForDeletion()) {
+            $cancelToken = $user->createToken(
+                'deletion-cancel',
+                ['deletion:cancel'],
+                now()->addMinutes(30)
+            )->plainTextToken;
+
+            return response()->json([
+                'requires_deletion_decision' => true,
+                'deletion_cancel_token' => $cancelToken,
+                'scheduled_deletion_at' => $user->scheduled_deletion_at->toIso8601String(),
+                'days_until_deletion' => $user->daysUntilDeletion(),
+            ]);
+        }
 
         // 2FA ellenőrzés: ha aktív, challenge tokent adunk vissza
         if ($user->hasTwoFactorEnabled()) {
@@ -106,6 +113,17 @@ class AuthController extends Controller
             return response()->json([
                 'requires_two_factor' => true,
                 'challenge_token' => $challengeToken,
+            ]);
+        }
+
+        // Aktív tagságok ellenőrzés (a scheduled_deletion_at után, mert az már visszatért)
+        $activeMemberships = $user->activeMemberships()
+            ->with(['organization', 'role'])
+            ->get();
+
+        if ($activeMemberships->isEmpty()) {
+            throw ValidationException::withMessages([
+                'email' => [__('auth.no_active_membership')],
             ]);
         }
 

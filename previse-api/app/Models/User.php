@@ -40,6 +40,7 @@ class User extends Authenticatable
         'two_factor_confirmed_at',
         'last_login_at',
         'last_login_ip',
+        'scheduled_deletion_at',
     ];
 
     protected $hidden = [
@@ -57,6 +58,7 @@ class User extends Authenticatable
             'email_change_sent_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'scheduled_deletion_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
             // 2FA: titkosítva tároljuk a secret-et és a recovery kódokat
@@ -161,6 +163,24 @@ class User extends Authenticatable
     public function hasTwoFactorEnabled(): bool
     {
         return ! is_null($this->two_factor_confirmed_at);
+    }
+
+    /**
+     * Grace period-ban van-e (fiók törlésre van ütemezve).
+     */
+    public function isScheduledForDeletion(): bool
+    {
+        return ! is_null($this->scheduled_deletion_at);
+    }
+
+    /**
+     * Hátralévő napok száma a fiók törlésig (kerekítve).
+     */
+    public function daysUntilDeletion(): ?int
+    {
+        if (! $this->scheduled_deletion_at) return null;
+        $diff = (int) ceil(now()->diffInHours($this->scheduled_deletion_at, false) / 24);
+        return max(0, $diff);
     }
 
     /**

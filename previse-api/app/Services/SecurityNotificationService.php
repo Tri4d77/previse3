@@ -62,6 +62,60 @@ class SecurityNotificationService
     }
 
     /**
+     * Fiók-törlés megkezdve (30 napos grace period).
+     */
+    public function accountDeletionScheduled(User $user, ?Request $request = null): void
+    {
+        $details = $request ? $this->baseDetails($request) : [
+            __('mail.security.labels.time') => now()->toDateTimeString(),
+        ];
+        $this->send($user, 'account_deletion_scheduled', $details);
+    }
+
+    /**
+     * Fiók-törlés visszavonva.
+     */
+    public function accountDeletionCancelled(User $user, ?Request $request = null): void
+    {
+        $details = $request ? $this->baseDetails($request) : [
+            __('mail.security.labels.time') => now()->toDateTimeString(),
+        ];
+        $this->send($user, 'account_deletion_cancelled', $details);
+    }
+
+    /**
+     * Értesíti egy szervezet többi tagját, hogy az utolsó admin távozott.
+     * A $otherMembers collection $member->user objektumokat tartalmaz.
+     */
+    public function adminLeftOrganization(\Illuminate\Support\Collection $otherMembers, string $orgName, string $departedAdminName): void
+    {
+        foreach ($otherMembers as $member) {
+            $user = $member->user ?? null;
+            if (! $user) continue;
+
+            try {
+                $locale = $user->settings?->locale ?? app()->getLocale();
+                Mail::send(new \App\Mail\SecurityAlertMail(
+                    recipientEmail: $user->email,
+                    userName: $user->name ?? '',
+                    eventKey: 'admin_left_organization',
+                    details: [],
+                    introReplacements: [
+                        'organization' => $orgName,
+                        'admin_name' => $departedAdminName,
+                    ],
+                    locale: $locale,
+                ));
+            } catch (\Throwable $e) {
+                Log::error('admin_left_organization email failed', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    /**
      * Megvolt-e már ez az (IP, user_agent) páros? A user korábbi tokenjei alapján.
      * A jelenleg kiállított új tokent NEM vesszük számba (azt a login éppen most hozta létre).
      */
@@ -85,7 +139,7 @@ class SecurityNotificationService
         $this->sendToEmail($user->email, $user, $eventKey, $details);
     }
 
-    private function sendToEmail(string $toEmail, User $user, string $eventKey, array $details): void
+    private function sendToEmail(string $toEmail, User $user, string $eventKey, array $details, array $introReplacements = []): void
     {
         try {
             $locale = $user->settings?->locale ?? app()->getLocale();
@@ -95,6 +149,7 @@ class SecurityNotificationService
                 userName: $user->name ?? '',
                 eventKey: $eventKey,
                 details: $details,
+                introReplacements: $introReplacements,
                 locale: $locale,
             ));
         } catch (\Throwable $e) {

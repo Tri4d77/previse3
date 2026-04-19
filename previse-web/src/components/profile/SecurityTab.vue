@@ -21,12 +21,19 @@ import {
   requestEmailChange,
   cancelEmailChange,
 } from '@/services/emailChange'
+import {
+  deleteAccount,
+  cancelAccountDeletion,
+  leaveOrganization,
+} from '@/services/account'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
+import { useRouter } from 'vue-router'
 
 const { t } = useI18n()
 const toast = useToastStore()
 const authStore = useAuthStore()
+const router = useRouter()
 
 // --- Password form ---
 const currentPassword = ref('')
@@ -277,6 +284,78 @@ function downloadRecoveryCodes() {
   URL.revokeObjectURL(link.href)
 }
 
+// =================== ACCOUNT DELETION ===================
+const deleteAccountOpen = ref(false)
+const deleteAccountPassword = ref('')
+const deleteAccountError = ref('')
+const deleteAccountLoading = ref(false)
+
+const isScheduledForDeletion = computed(() => !!authStore.user?.scheduled_deletion_at)
+const daysUntilDeletion = computed(() => authStore.user?.days_until_deletion ?? null)
+
+async function confirmDeleteAccount() {
+  deleteAccountError.value = ''
+  deleteAccountLoading.value = true
+  try {
+    await deleteAccount(deleteAccountPassword.value)
+    toast.success('A fiókod törlésre ütemezve. 30 nap múlva véglegesen törlődik.')
+    // Kijelentkeztetjük (token törlődött a backend-en)
+    authStore.clearAuth()
+    router.push({ name: 'login' })
+  } catch (err: any) {
+    deleteAccountError.value =
+      err.response?.data?.errors?.password?.[0]
+      ?? err.response?.data?.message
+      ?? 'Sikertelen.'
+  } finally {
+    deleteAccountLoading.value = false
+  }
+}
+
+// =================== MEMBERSHIPS (kilépés) ===================
+const memberships = computed(() => authStore.memberships ?? [])
+const leavingMembershipId = ref<number | null>(null)
+
+async function onLeaveMembership(membershipId: number, orgName: string) {
+  if (!confirm(`Biztosan kilépsz a(z) "${orgName}" szervezetből?`)) return
+
+  leavingMembershipId.value = membershipId
+  try {
+    await leaveOrganization(membershipId)
+    toast.success('Kiléptél a szervezetből.')
+    await authStore.fetchUser()
+  } catch (err: any) {
+    const code = err.response?.data?.code
+    if (code === 'last_active_membership') {
+      if (confirm(
+        'Ez az egyetlen aktív tagságod, így kilépés nem lehetséges.\n\n'
+        + 'Szeretnéd elindítani a fiók-törlést (30 napos grace periód)?'
+      )) {
+        // Lentebb görgetünk a fiók-törlés szekcióhoz
+        deleteAccountOpen.value = true
+        document.querySelector('[data-section="delete-account"]')?.scrollIntoView({ behavior: 'smooth' })
+      }
+    } else if (code === 'last_super_admin') {
+      toast.error('Te vagy az egyetlen szuper-admin. Előbb nevezz ki új szuper-admint.')
+    } else {
+      toast.error(err.response?.data?.message ?? 'Sikertelen.')
+    }
+  } finally {
+    leavingMembershipId.value = null
+  }
+}
+
+async function doCancelAccountDeletion() {
+  if (!confirm('Biztosan visszavonod a fiók törlését?')) return
+  try {
+    await cancelAccountDeletion()
+    toast.success('Fiók-törlés visszavonva.')
+    await authStore.fetchUser()
+  } catch (err: any) {
+    toast.error(err.response?.data?.message ?? 'Sikertelen.')
+  }
+}
+
 onMounted(() => {
   loadSessions()
   load2faStatus()
@@ -362,6 +441,40 @@ onMounted(() => {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tagságaim szekció -->
+    <section v-if="memberships.length > 0" class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Szervezeti tagságaim</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Ezekhez a szervezetekhez van aktív tagságod. Kiléphetsz bármelyikből, ha már nem dolgozol ott.
+        </p>
+      </div>
+      <div class="divide-y divide-gray-200 dark:divide-gray-700">
+        <div v-for="m in memberships" :key="m.id" class="p-5 flex items-center gap-4">
+          <div class="shrink-0 w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
+            <span class="text-base">
+              {{ m.organization.type === 'platform' ? '🏛️' : m.organization.type === 'subscriber' ? '🏢' : '🏬' }}
+            </span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-medium text-gray-900 dark:text-white">{{ m.organization.name }}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                {{ m.role.name }}
+              </span>
+            </div>
+          </div>
+          <button
+            @click="onLeaveMembership(m.id, m.organization.name)"
+            :disabled="leavingMembershipId === m.id"
+            class="text-sm px-3 py-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-50"
+          >
+            Kilépés
+          </button>
         </div>
       </div>
     </section>
@@ -619,6 +732,85 @@ onMounted(() => {
               </button>
             </div>
             <p v-if="disablingError" class="mt-1 text-xs text-red-600">{{ disablingError }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fiók megszüntetése szekció -->
+    <section data-section="delete-account" class="bg-white dark:bg-gray-800 rounded-lg shadow border border-red-200 dark:border-red-900/30">
+      <div class="p-6 border-b border-red-100 dark:border-red-900/30">
+        <h2 class="text-lg font-semibold text-red-700 dark:text-red-400">Fiók megszüntetése</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Véglegesen lezárja a fiókod. 30 napos türelmi idő után anonimizálásra kerül.
+          Egyedül a neved marad meg (a rendszerbe bevitt adatok mellett, hogy a műszaki
+          személyzet tudja, ki rögzítette).
+        </p>
+      </div>
+      <div class="p-6">
+
+        <!-- Pending deletion állapot -->
+        <div v-if="isScheduledForDeletion" class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p class="text-sm text-red-900 dark:text-red-200 font-medium">
+            Fiókod <strong>{{ daysUntilDeletion }} nap</strong> múlva véglegesen törlődik.
+          </p>
+          <p class="text-xs text-red-800 dark:text-red-300 mt-1">
+            A tagságaid deaktiválva lettek. A visszavonáshoz kattints alul.
+          </p>
+          <button
+            @click="doCancelAccountDeletion"
+            class="mt-3 text-sm px-3 py-1.5 bg-white dark:bg-gray-800 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/30"
+          >
+            Fiók-törlés visszavonása
+          </button>
+        </div>
+
+        <!-- Nincs pending -->
+        <div v-else>
+          <button
+            v-if="!deleteAccountOpen"
+            @click="deleteAccountOpen = true"
+            class="text-sm px-3 py-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded border border-red-300 dark:border-red-700"
+          >
+            Fiók megszüntetése
+          </button>
+
+          <div v-else class="space-y-3 max-w-md">
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-xs text-amber-900 dark:text-amber-200">
+              <p class="font-medium mb-1">⚠️ Figyelem</p>
+              <p class="mb-2">
+                Ha egy szervezet <strong>utolsó adminisztrátora</strong> vagy,
+                előbb érdemes kinevezni egy másik admint (új meghívással vagy egy meglévő
+                tag szerepkörének módosításával), különben a szervezetet a Platform
+                szuper-admin fogja felügyelni.
+              </p>
+              <p>A tagjaid email-ben értesítést kapnak, ha te voltál az utolsó admin.</p>
+            </div>
+
+            <input
+              v-model="deleteAccountPassword"
+              type="password"
+              placeholder="Jelszó megerősítése"
+              autocomplete="current-password"
+              class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+            />
+            <p v-if="deleteAccountError" class="text-xs text-red-600">{{ deleteAccountError }}</p>
+
+            <div class="flex gap-2">
+              <button
+                @click="confirmDeleteAccount"
+                :disabled="deleteAccountLoading || !deleteAccountPassword"
+                class="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-sm font-medium rounded-lg"
+              >
+                {{ deleteAccountLoading ? '…' : 'Igen, indítom a 30 napos visszaszámlálást' }}
+              </button>
+              <button
+                @click="deleteAccountOpen = false; deleteAccountPassword = ''; deleteAccountError = ''"
+                class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
+              >
+                Mégse
+              </button>
+            </div>
           </div>
         </div>
       </div>

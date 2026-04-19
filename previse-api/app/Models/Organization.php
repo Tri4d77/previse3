@@ -20,6 +20,11 @@ class Organization extends Model
         self::STATUS_TERMINATED,
     ];
 
+    // Szervezet-típusok
+    public const TYPE_PLATFORM = 'platform';
+    public const TYPE_SUBSCRIBER = 'subscriber';
+    public const TYPE_CLIENT = 'client';
+
     protected $fillable = [
         'parent_id',
         'type',

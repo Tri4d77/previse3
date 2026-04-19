@@ -56,6 +56,13 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::delete('/profile/sessions/others', [ProfileController::class, 'destroyOtherSessions'])->name('profile.sessions.destroy-others');
     Route::delete('/profile/sessions/{id}', [ProfileController::class, 'destroySession'])->whereNumber('id')->name('profile.sessions.destroy');
 
+    // --- Szervezetb\u0151l kil\u00e9p\u00e9s + fi\u00f3k megsz\u00fcntet\u00e9se (M7) ---
+    Route::post('/profile/memberships/{id}/leave', [ProfileController::class, 'leaveOrganization'])
+        ->whereNumber('id')
+        ->name('profile.memberships.leave');
+    Route::delete('/profile', [ProfileController::class, 'deleteAccount'])->name('profile.delete');
+    Route::post('/profile/delete/cancel', [ProfileController::class, 'cancelAccountDeletion'])->name('profile.delete.cancel');
+
     // --- Email-c\u00edm v\u00e1ltoztat\u00e1s (M6) ---
     Route::post('/profile/email/change', [ProfileController::class, 'requestEmailChange'])->name('profile.email.change');
     Route::delete('/profile/email/pending', [ProfileController::class, 'cancelEmailChange'])->name('profile.email.cancel');

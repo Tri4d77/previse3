@@ -15,6 +15,8 @@ export interface User {
   email_verified_at: string | null
   pending_email: string | null
   two_factor_enabled: boolean
+  scheduled_deletion_at: string | null
+  days_until_deletion: number | null
   last_login_at: string | null
   created_at: string
   settings?: UserSettings | null
@@ -97,7 +99,21 @@ export interface LoginTwoFactorResponse {
   challenge_token: string
 }
 
-export type LoginResponse = LoginDirectResponse | LoginSelectionResponse | LoginTwoFactorResponse
+/**
+ * Fiók törlésre ütemezve: csak a visszavonás flow elérhető.
+ */
+export interface LoginDeletionDecisionResponse {
+  requires_deletion_decision: true
+  deletion_cancel_token: string
+  scheduled_deletion_at: string
+  days_until_deletion: number
+}
+
+export type LoginResponse =
+  | LoginDirectResponse
+  | LoginSelectionResponse
+  | LoginTwoFactorResponse
+  | LoginDeletionDecisionResponse
 
 /**
  * /auth/user (bejelentkezett állapot).

@@ -29,6 +29,11 @@ export const useAuthStore = defineStore('auth', () => {
   // 2FA challenge (ha a user-nél aktív a kétfaktoros hitelesítés)
   const twoFactorChallengeToken = ref<string | null>(null)
 
+  // Fiók törlés pending állapot (M7)
+  const deletionCancelToken = ref<string | null>(null)
+  const scheduledDeletionAt = ref<string | null>(null)
+  const daysUntilDeletion = ref<number | null>(null)
+
   // ========== GETTERS ==========
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const needsOrganizationSelection = computed(() => !!selectionToken.value)
@@ -79,7 +84,14 @@ export const useAuthStore = defineStore('auth', () => {
 
       const data = response.data
 
-      if ('requires_two_factor' in data) {
+      if ('requires_deletion_decision' in data) {
+        // Fiók törlésre ütemezve: speciális token, csak a cancel endpointhoz
+        deletionCancelToken.value = data.deletion_cancel_token
+        scheduledDeletionAt.value = data.scheduled_deletion_at
+        daysUntilDeletion.value = data.days_until_deletion
+        localStorage.setItem('auth_token', data.deletion_cancel_token)
+        token.value = data.deletion_cancel_token
+      } else if ('requires_two_factor' in data) {
         // 2FA challenge szükséges → nem tárolunk teljes authet, csak a challenge tokent
         twoFactorChallengeToken.value = data.challenge_token
       } else if ('requires_organization_selection' in data) {
@@ -100,6 +112,33 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  /**
+   * Fiók-törlés visszavonása + azonnali bejelentkeztetés.
+   * A backend a cancel után egy teljes login választ ad vissza (token + user),
+   * így nem kell újra email/jelszót kérni.
+   */
+  async function cancelDeletionAndLogin(): Promise<LoginResponse> {
+    const response = await api.post<LoginResponse>('/profile/delete/cancel')
+    const data = response.data
+
+    // A deletion-cancel token már revokálva backend-en; lokálisan is töröljük
+    deletionCancelToken.value = null
+    scheduledDeletionAt.value = null
+    daysUntilDeletion.value = null
+
+    if ('requires_organization_selection' in data) {
+      selectionToken.value = data.selection_token
+      selectionMemberships.value = data.memberships
+      localStorage.setItem('auth_token', data.selection_token)
+      token.value = data.selection_token
+    } else if ('data' in data) {
+      applyAuthData(data.data.user, data.data.current_membership, data.data.token, null, false)
+      await fetchUser()
+    }
+
+    return data
   }
 
   /**
@@ -289,12 +328,13 @@ export const useAuthStore = defineStore('auth', () => {
     isSuperAdmin, isImpersonation, memberships, permissions,
     loading, isLocked, selectionToken, selectionMemberships,
     twoFactorChallengeToken,
+    deletionCancelToken, scheduledDeletionAt, daysUntilDeletion,
     // Getters
     isAuthenticated, needsOrganizationSelection, canManageOrganizations,
     userName, userEmail, userInitials,
     currentOrganizationName, currentOrganizationType, currentRoleName,
     // Actions
-    login, verifyTwoFactor, selectOrganization, switchOrganization,
+    login, verifyTwoFactor, cancelDeletionAndLogin, selectOrganization, switchOrganization,
     enterOrganization, exitOrganization,
     fetchUser, logout, clearAuth,
     hasPermission, hasAnyPermission,

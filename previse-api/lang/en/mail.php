@@ -76,6 +76,21 @@ return [
             'heading' => 'Email address changed',
             'intro' => 'Your account email address has been successfully changed.',
         ],
+        'account_deletion_scheduled' => [
+            'subject' => 'Account deletion scheduled — :app',
+            'heading' => 'Your account will be deleted in 30 days',
+            'intro' => 'You requested the deletion of your Previse account. The account will be permanently removed <strong>in 30 days</strong>. During this time login is disabled for you, but if you change your mind, you can sign in and cancel the process with the "Cancel deletion" button.',
+        ],
+        'account_deletion_cancelled' => [
+            'subject' => 'Account deletion cancelled — :app',
+            'heading' => 'Account deletion cancelled',
+            'intro' => 'You cancelled the deletion of your account. Your account is back to normal usage.',
+        ],
+        'admin_left_organization' => [
+            'subject' => 'Organization admin has left — :app',
+            'heading' => 'Admin has left the organization',
+            'intro' => 'The last admin (:admin_name) of :organization has left or deleted their account. Admin tasks are now handled by the Platform super-admin — please contact them for management needs.',
+        ],
 
         'labels' => [
             'time' => 'Time',

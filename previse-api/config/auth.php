@@ -135,4 +135,13 @@ return [
     */
     'email_change_expires_minutes' => env('AUTH_EMAIL_CHANGE_EXPIRES_MINUTES', 60),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Account deletion grace period
+    |--------------------------------------------------------------------------
+    | Hány napig várunk a user kérése után a fiók végleges törlésével (anonimizálás).
+    | A user ez alatt az idő alatt be tud jelentkezni és visszavonhatja a törlést.
+    */
+    'account_deletion_grace_days' => env('AUTH_ACCOUNT_DELETION_GRACE_DAYS', 30),
+
 ];

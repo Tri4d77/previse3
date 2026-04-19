@@ -48,4 +48,15 @@ return [
     'email_change_invalid' => 'Érvénytelen vagy már felhasznált megerősítő link.',
     'email_change_expired' => 'A megerősítő link lejárt. Kezdd újra a változtatást.',
     'email_change_nothing_pending' => 'Nincs folyamatban email-változtatás.',
+
+    // M7 - Szervezetből kilépés + fiók megszüntetése
+    'membership_not_found' => 'A tagság nem található.',
+    'left_organization' => 'Sikeresen kiléptél a szervezetből.',
+    'cannot_leave_last_membership' => 'Ez az egyetlen aktív tagságod. Ha tényleg szeretnéd elhagyni, töröld a fiókod a Profil → Biztonság oldalon.',
+    'cannot_leave_last_super_admin' => 'Te vagy az egyetlen szuper-admin. Előbb nevezz ki új szuper-admint, mielőtt elhagyod a Platform szervezetet.',
+    'cannot_delete_last_super_admin' => 'Te vagy az egyetlen szuper-admin. Előbb hozz létre új szuper-adminisztrátort, mielőtt törölnéd a fiókod.',
+    'account_deletion_scheduled' => 'Fiókod törlésre ütemezve. 30 napon belül a megadott email-címen be tudsz jelentkezni és visszavonhatod, utána véglegesen törlődik.',
+    'account_deletion_cancelled' => 'Fiók-törlés visszavonva.',
+    'account_already_scheduled_for_deletion' => 'A fiók már törlésre van ütemezve.',
+    'account_not_scheduled_for_deletion' => 'A fiók nincs törlésre ütemezve.',
 ];
