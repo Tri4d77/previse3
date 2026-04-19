@@ -6,9 +6,11 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Controller;
 use App\Mail\EmailChangeConfirmMail;
 use App\Mail\EmailChangeNoticeMail;
+use App\Models\AuthEvent;
 use App\Models\Membership;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\AuthEventLogger;
 use App\Services\SecurityNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -36,6 +38,7 @@ class ProfileController extends Controller
 {
     public function __construct(
         private SecurityNotificationService $securityNotify,
+        private AuthEventLogger $authEvents,
     ) {}
 
     /**
@@ -85,6 +88,9 @@ class ProfileController extends Controller
 
         // Biztonsági értesítés email
         $this->securityNotify->passwordChanged($user, $request);
+        $this->authEvents->log(AuthEvent::PASSWORD_CHANGED, user: $user, metadata: [
+            'logout_other_devices' => $request->boolean('logout_other_devices'),
+        ]);
 
         return response()->json([
             'message' => __('auth.password_changed'),
@@ -149,6 +155,8 @@ class ProfileController extends Controller
             ], 404);
         }
 
+        $this->authEvents->log(AuthEvent::SESSION_REVOKED, user: $user, metadata: ['token_id' => $id]);
+
         return response()->json([
             'message' => __('auth.session_revoked'),
         ]);
@@ -167,6 +175,8 @@ class ProfileController extends Controller
         $count = $user->tokens()
             ->when($currentTokenId, fn ($q) => $q->where('id', '!=', $currentTokenId))
             ->delete();
+
+        $this->authEvents->log(AuthEvent::SESSIONS_OTHERS_REVOKED, user: $user, metadata: ['count' => $count]);
 
         return response()->json([
             'message' => __('auth.other_sessions_revoked'),
@@ -250,6 +260,11 @@ class ProfileController extends Controller
             Log::error('Email change notice mail failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
         }
 
+        $this->authEvents->log(AuthEvent::EMAIL_CHANGE_REQUESTED, user: $user, metadata: [
+            'old_email' => $user->email,
+            'new_email' => $validated['new_email'],
+        ]);
+
         return response()->json([
             'message' => __('auth.email_change_requested'),
             'pending_email' => $validated['new_email'],
@@ -305,6 +320,10 @@ class ProfileController extends Controller
 
         // Biztonsági értesítés a régi címre
         $this->securityNotify->emailChanged($user, $oldEmail, $request);
+        $this->authEvents->log(AuthEvent::EMAIL_CHANGE_CONFIRMED, user: $user, metadata: [
+            'old_email' => $oldEmail,
+            'new_email' => $newEmail,
+        ]);
 
         return response()->json([
             'message' => __('auth.email_change_confirmed'),
@@ -331,7 +350,46 @@ class ProfileController extends Controller
             'email_change_sent_at' => null,
         ]);
 
+        $this->authEvents->log(AuthEvent::EMAIL_CHANGE_CANCELLED, user: $user);
+
         return response()->json(['message' => __('auth.email_change_cancelled')]);
+    }
+
+    // ============== LOGIN HISTORY (M8) ==============
+
+    /**
+     * GET /api/v1/profile/login-history
+     *
+     * A saját auth_events bejegyzéseim, lapozva.
+     * Paraméterek:
+     *   - event[]  : szűrés eseménytípusra (opcionális, több is megadható)
+     *   - per_page : lapméret (default 25, max 100)
+     *   - page     : oldalszám
+     */
+    public function loginHistory(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $query = \App\Models\AuthEvent::where('user_id', $user->id)
+            ->orderByDesc('created_at');
+
+        if ($request->filled('event')) {
+            $events = (array) $request->input('event');
+            $query->whereIn('event', $events);
+        }
+
+        $perPage = min((int) $request->input('per_page', 25), 100);
+        $paginated = $query->paginate($perPage);
+
+        return response()->json([
+            'data' => $paginated->items(),
+            'meta' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+            ],
+        ]);
     }
 
     // ============== SZERVEZETBŐL KILÉPÉS (M7) ==============
@@ -395,6 +453,13 @@ class ProfileController extends Controller
         if ($wasLastAdmin) {
             $this->notifyOtherMembersAdminLeft($membership, $user);
         }
+
+        $this->authEvents->log(AuthEvent::MEMBERSHIP_LEFT, user: $user, metadata: [
+            'membership_id' => $membership->id,
+            'organization_id' => $membership->organization_id,
+            'organization_name' => $membership->organization->name,
+            'was_last_admin' => $wasLastAdmin,
+        ]);
 
         return response()->json(['message' => __('auth.left_organization')]);
     }
@@ -470,6 +535,9 @@ class ProfileController extends Controller
 
         // Értesítés magának a user-nek
         $this->securityNotify->accountDeletionScheduled($user, $request);
+        $this->authEvents->log(AuthEvent::ACCOUNT_DELETION_SCHEDULED, user: $user, metadata: [
+            'grace_days' => $graceDays,
+        ]);
 
         return response()->json([
             'message' => __('auth.account_deletion_scheduled'),
@@ -528,6 +596,7 @@ class ProfileController extends Controller
         }
 
         $this->securityNotify->accountDeletionCancelled($user, $request);
+        $this->authEvents->log(AuthEvent::ACCOUNT_DELETION_CANCELLED, user: $user);
 
         // A user-nek egyben visszaadunk egy igazi login választ,
         // hogy ne kelljen még egyszer bejelentkeznie.

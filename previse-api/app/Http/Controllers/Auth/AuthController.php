@@ -10,7 +10,9 @@ use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\Membership;
 use App\Models\Organization;
+use App\Models\AuthEvent;
 use App\Models\User;
+use App\Services\AuthEventLogger;
 use App\Services\SecurityNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +26,7 @@ class AuthController extends Controller
 {
     public function __construct(
         private SecurityNotificationService $securityNotify,
+        private AuthEventLogger $authEvents,
     ) {}
 
     /**
@@ -45,6 +48,8 @@ class AuthController extends Controller
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
 
+            $this->authEvents->log(AuthEvent::LOGIN_THROTTLED, email: $request->email, metadata: ['retry_after' => $seconds]);
+
             throw ValidationException::withMessages([
                 'email' => [__('auth.throttle', ['seconds' => $seconds])],
             ]);
@@ -56,6 +61,8 @@ class AuthController extends Controller
         // Hibás email vagy jelszó
         if (! $user || is_null($user->password) || ! Hash::check($request->password, $user->password)) {
             RateLimiter::hit($throttleKey, 60);
+
+            $this->authEvents->log(AuthEvent::LOGIN_FAILED, user: $user, email: $request->email, metadata: ['reason' => 'invalid_credentials']);
 
             throw ValidationException::withMessages([
                 'email' => [__('auth.failed')],
@@ -264,6 +271,12 @@ class AuthController extends Controller
         // Régi token törlése (biztonsági okokból)
         $user->currentAccessToken()->delete();
 
+        $this->authEvents->log(AuthEvent::ORGANIZATION_SWITCHED, user: $user, metadata: [
+            'membership_id' => $membership->id,
+            'organization_id' => $membership->organization_id,
+            'organization_name' => $membership->organization->name,
+        ]);
+
         return $this->issueTokenForMembership($user, $membership, $request);
     }
 
@@ -315,6 +328,8 @@ class AuthController extends Controller
         // Régi token törlése
         $user->currentAccessToken()->delete();
 
+        $this->authEvents->log(AuthEvent::ORGANIZATION_EXITED, user: $user);
+
         return $this->issueTokenForMembership($user, $platformMembership, $request);
     }
 
@@ -334,6 +349,13 @@ class AuthController extends Controller
             'context_organization_id' => null,
             'ip_address' => $request->ip(),
             'user_agent' => Str::limit((string) $request->userAgent(), 500, ''),
+        ]);
+
+        // Napló
+        $this->authEvents->log(AuthEvent::LOGIN_SUCCESS, user: $user, metadata: [
+            'membership_id' => $membership->id,
+            'organization_id' => $membership->organization_id,
+            'organization_name' => $membership->organization->name ?? null,
         ]);
 
         // Új eszköz / IP? → biztonsági email
@@ -363,6 +385,11 @@ class AuthController extends Controller
             'context_organization_id' => $organization->id,
             'ip_address' => $request->ip(),
             'user_agent' => Str::limit((string) $request->userAgent(), 500, ''),
+        ]);
+
+        $this->authEvents->log(AuthEvent::ORGANIZATION_ENTERED, user: $user, metadata: [
+            'organization_id' => $organization->id,
+            'organization_name' => $organization->name,
         ]);
 
         return response()->json([
@@ -413,9 +440,12 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        if ($request->user()->currentAccessToken()) {
-            $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        if ($user->currentAccessToken()) {
+            $user->currentAccessToken()->delete();
         }
+
+        $this->authEvents->log(AuthEvent::LOGOUT, user: $user);
 
         return response()->json(['message' => __('auth.logged_out')]);
     }
@@ -425,7 +455,11 @@ class AuthController extends Controller
      */
     public function logoutAll(Request $request): JsonResponse
     {
-        $request->user()->tokens()->delete();
+        $user = $request->user();
+        $count = $user->tokens()->count();
+        $user->tokens()->delete();
+
+        $this->authEvents->log(AuthEvent::LOGOUT_ALL, user: $user, metadata: ['count' => $count]);
 
         return response()->json(['message' => __('auth.logged_out_all')]);
     }
@@ -530,6 +564,9 @@ class AuthController extends Controller
     {
         Password::sendResetLink($request->only('email'));
 
+        $user = User::where('email', $request->email)->first();
+        $this->authEvents->log(AuthEvent::PASSWORD_RESET_REQUESTED, user: $user, email: $request->email);
+
         return response()->json(['message' => __('auth.reset_link_sent')]);
     }
 
@@ -554,6 +591,9 @@ class AuthController extends Controller
                 'email' => [__($status)],
             ]);
         }
+
+        $user = User::where('email', $request->email)->first();
+        $this->authEvents->log(AuthEvent::PASSWORD_RESET_COMPLETED, user: $user);
 
         return response()->json(['message' => __('auth.password_reset_success')]);
     }
@@ -611,6 +651,10 @@ class AuthController extends Controller
             'joined_at' => now(),
             'invitation_token' => null,
             'invitation_sent_at' => null,
+        ]);
+
+        $this->authEvents->log(AuthEvent::INVITATION_ACCEPTED, user: $user, metadata: [
+            'organization_id' => $membership->organization_id,
         ]);
 
         return response()->json([

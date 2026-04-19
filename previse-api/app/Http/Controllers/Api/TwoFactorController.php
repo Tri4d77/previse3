@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Auth\AuthController;
+use App\Models\AuthEvent;
 use App\Models\Membership;
+use App\Services\AuthEventLogger;
 use App\Services\SecurityNotificationService;
 use App\Services\TwoFactorService;
 use Illuminate\Http\JsonResponse;
@@ -32,6 +34,7 @@ class TwoFactorController extends Controller
     public function __construct(
         private TwoFactorService $twoFactor,
         private SecurityNotificationService $securityNotify,
+        private AuthEventLogger $authEvents,
     ) {}
 
     /**
@@ -128,6 +131,7 @@ class TwoFactorController extends Controller
 
         // Biztonsági értesítés
         $this->securityNotify->twoFactorEnabled($user, $request);
+        $this->authEvents->log(AuthEvent::TWO_FACTOR_ENABLED, user: $user);
 
         return response()->json([
             'data' => [
@@ -169,6 +173,7 @@ class TwoFactorController extends Controller
         ]);
 
         $this->securityNotify->twoFactorDisabled($user, $request);
+        $this->authEvents->log(AuthEvent::TWO_FACTOR_DISABLED, user: $user);
 
         return response()->json([
             'message' => __('auth.2fa_disabled'),
@@ -209,6 +214,8 @@ class TwoFactorController extends Controller
         $codes = $this->twoFactor->generateRecoveryCodes();
         $user->update(['two_factor_recovery_codes' => $codes]);
 
+        $this->authEvents->log(AuthEvent::TWO_FACTOR_RECOVERY_REGENERATED, user: $user);
+
         return response()->json([
             'data' => $codes,
             'message' => __('auth.2fa_recovery_codes_regenerated'),
@@ -245,8 +252,9 @@ class TwoFactorController extends Controller
         // Csak a dedikált 2fa-challenge tokennel hívható (a login állít elő egy
         // rövid életű tokent '2fa:verify' ability-vel; normál login tokenek '*' ability-vel
         // rendelkeznek, ezeket itt kifejezetten tiltjuk).
-        $abilities = $token?->abilities ?? [];
-        if (! $token || ! in_array('2fa:verify', $abilities, true) || in_array('*', $abilities, true)) {
+        $abilities = (array) ($token?->abilities ?? []);
+        $hasAll = in_array('*', $abilities, true);
+        if (! $token || $hasAll || ! in_array('2fa:verify', $abilities, true)) {
             return response()->json(['message' => __('auth.forbidden')], 403);
         }
 
@@ -256,6 +264,7 @@ class TwoFactorController extends Controller
 
         // Kód ellenőrzés (TOTP vagy recovery)
         $valid = false;
+        $usedRecovery = false;
         if (! empty($validated['code'])) {
             $valid = $this->twoFactor->verifyCode($user->two_factor_secret, $validated['code']);
         } else {
@@ -266,12 +275,20 @@ class TwoFactorController extends Controller
             if ($newCodes !== null) {
                 $user->update(['two_factor_recovery_codes' => $newCodes]);
                 $valid = true;
+                $usedRecovery = true;
             }
         }
 
         if (! $valid) {
+            $this->authEvents->log(AuthEvent::TWO_FACTOR_CHALLENGE_FAILED, user: $user);
             throw ValidationException::withMessages([
                 'code' => [__('auth.2fa_invalid_code')],
+            ]);
+        }
+
+        if ($usedRecovery) {
+            $this->authEvents->log(AuthEvent::TWO_FACTOR_RECOVERY_USED, user: $user, metadata: [
+                'remaining_codes' => count($user->two_factor_recovery_codes ?? []),
             ]);
         }
 

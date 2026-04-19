@@ -144,4 +144,13 @@ return [
     */
     'account_deletion_grace_days' => env('AUTH_ACCOUNT_DELETION_GRACE_DAYS', 30),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Auth events retention
+    |--------------------------------------------------------------------------
+    | Auth naplóbejegyzések megőrzési ideje napokban. A users:prune-auth-events
+    | parancs ezt használja a régi rekordok törlésére.
+    */
+    'auth_events_retention_days' => env('AUTH_EVENTS_RETENTION_DAYS', 90),
+
 ];

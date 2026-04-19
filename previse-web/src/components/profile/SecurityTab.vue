@@ -26,6 +26,10 @@ import {
   cancelAccountDeletion,
   leaveOrganization,
 } from '@/services/account'
+import {
+  fetchLoginHistory,
+  type AuthEventItem,
+} from '@/services/authEvents'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { useRouter } from 'vue-router'
@@ -343,6 +347,80 @@ async function onLeaveMembership(membershipId: number, orgName: string) {
   } finally {
     leavingMembershipId.value = null
   }
+}
+
+// =================== LOGIN HISTORY (M8) ===================
+const historyOpen = ref(false)
+const historyLoading = ref(false)
+const historyEvents = ref<AuthEventItem[]>([])
+const historyPage = ref(1)
+const historyLastPage = ref(1)
+const historyTotal = ref(0)
+
+async function loadLoginHistory(page = 1) {
+  historyLoading.value = true
+  try {
+    const res = await fetchLoginHistory({ page, per_page: 20 })
+    historyEvents.value = res.data
+    historyPage.value = res.meta.current_page
+    historyLastPage.value = res.meta.last_page
+    historyTotal.value = res.meta.total
+  } catch (err: any) {
+    toast.error(err.response?.data?.message ?? 'Előzmények betöltése sikertelen.')
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+function toggleHistory() {
+  historyOpen.value = !historyOpen.value
+  if (historyOpen.value && historyEvents.value.length === 0) {
+    loadLoginHistory()
+  }
+}
+
+const eventLabels: Record<string, string> = {
+  login_success: 'Sikeres bejelentkezés',
+  login_failed: 'Sikertelen bejelentkezés',
+  login_throttled: 'Túl sok próbálkozás',
+  logout: 'Kijelentkezés',
+  logout_all: 'Kijelentkezés minden eszközről',
+  organization_switched: 'Szervezet-váltás',
+  organization_entered: 'Belépés szervezetbe (impersonation)',
+  organization_exited: 'Kilépés szervezetből',
+  invitation_accepted: 'Meghívó elfogadva',
+  password_reset_requested: 'Jelszó-visszaállítás kérve',
+  password_reset_completed: 'Jelszó visszaállítva',
+  password_changed: 'Jelszó módosítva',
+  email_change_requested: 'Email-változtatás indítva',
+  email_change_confirmed: 'Email-változtatás megerősítve',
+  email_change_cancelled: 'Email-változtatás visszavonva',
+  two_factor_enabled: '2FA bekapcsolva',
+  two_factor_disabled: '2FA kikapcsolva',
+  two_factor_challenge_failed: '2FA sikertelen kód',
+  two_factor_recovery_used: 'Recovery kód használva',
+  two_factor_recovery_regenerated: 'Új recovery kódok',
+  session_revoked: 'Session kijelentkeztetve',
+  sessions_others_revoked: 'Minden más eszköz kijelentkeztetve',
+  membership_left: 'Szervezetből kilépés',
+  account_deletion_scheduled: 'Fiók-törlés kezdeményezve',
+  account_deletion_cancelled: 'Fiók-törlés visszavonva',
+}
+
+const dangerEvents = new Set(['login_failed', 'login_throttled', 'two_factor_challenge_failed'])
+const warnEvents = new Set([
+  'password_changed', 'email_change_requested', 'email_change_confirmed',
+  'two_factor_disabled', 'account_deletion_scheduled', 'sessions_others_revoked',
+])
+
+function eventBadgeClass(e: string): string {
+  if (dangerEvents.has(e)) return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+  if (warnEvents.has(e)) return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+  return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+}
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString()
 }
 
 async function doCancelAccountDeletion() {
@@ -732,6 +810,80 @@ onMounted(() => {
               </button>
             </div>
             <p v-if="disablingError" class="mt-1 text-xs text-red-600">{{ disablingError }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bejelentkezési előzmények szekció -->
+    <section class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <button
+        @click="toggleHistory"
+        class="w-full p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+      >
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Bejelentkezési előzmények</h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            A fiókod biztonsági eseményei az elmúlt 90 napban.
+          </p>
+        </div>
+        <svg class="w-5 h-5 text-gray-400 transition-transform" :class="historyOpen ? 'rotate-180' : ''"
+             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+
+      <div v-if="historyOpen" class="p-6">
+        <div v-if="historyLoading" class="text-center text-gray-500 py-4">…</div>
+
+        <div v-else-if="historyEvents.length === 0" class="text-center text-gray-500 py-4">
+          Nincsenek megjeleníthető események.
+        </div>
+
+        <div v-else class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                <th class="py-2 pr-4 font-medium">Esemény</th>
+                <th class="py-2 pr-4 font-medium">Időpont</th>
+                <th class="py-2 pr-4 font-medium">IP</th>
+                <th class="py-2 font-medium">Eszköz</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="e in historyEvents" :key="e.id"
+                  class="border-b border-gray-100 dark:border-gray-700/60 last:border-0">
+                <td class="py-2 pr-4">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                        :class="eventBadgeClass(e.event)">
+                    {{ eventLabels[e.event] ?? e.event }}
+                  </span>
+                </td>
+                <td class="py-2 pr-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ formatDateTime(e.created_at) }}</td>
+                <td class="py-2 pr-4 text-gray-600 dark:text-gray-400 font-mono text-xs">{{ e.ip_address ?? '—' }}</td>
+                <td class="py-2 text-gray-600 dark:text-gray-400 text-xs truncate max-w-[200px]" :title="e.user_agent ?? ''">
+                  {{ e.user_agent ? parseUserAgent(e.user_agent) : '—' }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Egyszerű lapozás -->
+          <div v-if="historyLastPage > 1" class="mt-4 flex items-center justify-between text-sm">
+            <span class="text-gray-500">{{ historyTotal }} esemény</span>
+            <div class="flex gap-2">
+              <button
+                :disabled="historyPage <= 1"
+                @click="loadLoginHistory(historyPage - 1)"
+                class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded disabled:opacity-40"
+              >Előző</button>
+              <span class="px-3 py-1">{{ historyPage }} / {{ historyLastPage }}</span>
+              <button
+                :disabled="historyPage >= historyLastPage"
+                @click="loadLoginHistory(historyPage + 1)"
+                class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded disabled:opacity-40"
+              >Következő</button>
+            </div>
           </div>
         </div>
       </div>

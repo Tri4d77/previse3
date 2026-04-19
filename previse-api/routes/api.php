@@ -56,6 +56,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::delete('/profile/sessions/others', [ProfileController::class, 'destroyOtherSessions'])->name('profile.sessions.destroy-others');
     Route::delete('/profile/sessions/{id}', [ProfileController::class, 'destroySession'])->whereNumber('id')->name('profile.sessions.destroy');
 
+    // --- Login history (M8) ---
+    Route::get('/profile/login-history', [ProfileController::class, 'loginHistory'])->name('profile.login-history');
+
     // --- Szervezetb\u0151l kil\u00e9p\u00e9s + fi\u00f3k megsz\u00fcntet\u00e9se (M7) ---
     Route::post('/profile/memberships/{id}/leave', [ProfileController::class, 'leaveOrganization'])
         ->whereNumber('id')
