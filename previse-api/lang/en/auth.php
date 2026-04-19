@@ -38,4 +38,14 @@ return [
     '2fa_enabled' => 'Two-factor authentication successfully enabled. Save the recovery codes in a safe place.',
     '2fa_disabled' => 'Two-factor authentication has been disabled.',
     '2fa_recovery_codes_regenerated' => 'New recovery codes generated. The old ones can no longer be used.',
+
+    // Email change (M6)
+    'email_same_as_current' => 'The new email must be different from the current one.',
+    'email_already_taken' => 'This email address is already taken.',
+    'email_change_requested' => 'A confirmation email has been sent to the new address. Click the link to apply the change.',
+    'email_change_confirmed' => 'Email address successfully changed.',
+    'email_change_cancelled' => 'Email change request cancelled.',
+    'email_change_invalid' => 'Invalid or already used confirmation link.',
+    'email_change_expired' => 'The confirmation link has expired. Please restart the change process.',
+    'email_change_nothing_pending' => 'No email change in progress.',
 ];

@@ -29,4 +29,59 @@ return [
         'expiry_note' => 'This reset link is valid for <strong>:minutes minutes</strong>. After that you will need to request a new one.',
     ],
 
+    // M6 - Email change
+    'email_change_confirm' => [
+        'subject' => 'Confirm email change — :app',
+        'heading' => 'Hi :name,',
+        'intro' => 'You requested an email address change: :old_email → :new_email. Click the button below from this new email address to confirm.',
+        'action' => 'Confirm new email',
+        'expiry_note' => 'This confirmation link is valid for <strong>:minutes minutes</strong>. After that you will need to restart the process.',
+        'ignore_note' => 'If you did not request this change, ignore this message — your account email will remain unchanged.',
+    ],
+    'email_change_notice' => [
+        'subject' => 'Security notice: email change requested — :app',
+        'heading' => 'Hi :name,',
+        'intro' => 'An email address change was initiated on your account. New address: :new_email. Time: :time. IP: :ip.',
+        'not_you_warning' => 'If YOU did NOT initiate this change, log in immediately and change your password, or request a password reset.',
+        'security_tip' => 'Security tip: enable two-factor authentication under Profile → Security.',
+    ],
+
+    // M6 - Security notifications
+    'security' => [
+        'footer_tip' => 'Security tip: if anything looks suspicious, log in, revoke all sessions under Profile → Security, and change your password.',
+        'not_you_warning' => 'If YOU are NOT responsible for this event, act immediately: change your password, revoke all sessions, and enable 2FA (if not yet enabled).',
+
+        'password_changed' => [
+            'subject' => 'Password changed — :app',
+            'heading' => 'Password changed',
+            'intro' => 'The password for your account has been changed.',
+        ],
+        'two_factor_enabled' => [
+            'subject' => '2FA enabled — :app',
+            'heading' => 'Two-factor authentication enabled',
+            'intro' => 'Your account now requires a 2FA code at login.',
+        ],
+        'two_factor_disabled' => [
+            'subject' => '2FA disabled — :app',
+            'heading' => 'Two-factor authentication disabled',
+            'intro' => 'Two-factor authentication has been turned off on your account.',
+        ],
+        'new_device_login' => [
+            'subject' => 'New sign-in — :app',
+            'heading' => 'Sign-in from a new device or location',
+            'intro' => 'Your account was signed in from a new device or IP address.',
+        ],
+        'email_changed' => [
+            'subject' => 'Email address changed — :app',
+            'heading' => 'Email address changed',
+            'intro' => 'Your account email address has been successfully changed.',
+        ],
+
+        'labels' => [
+            'time' => 'Time',
+            'ip' => 'IP address',
+            'device' => 'Device',
+        ],
+    ],
+
 ];

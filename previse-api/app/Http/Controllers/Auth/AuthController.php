@@ -11,6 +11,7 @@ use App\Http\Resources\UserResource;
 use App\Models\Membership;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\SecurityNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -21,6 +22,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private SecurityNotificationService $securityNotify,
+    ) {}
+
     /**
      * POST /api/v1/auth/login
      *
@@ -312,6 +317,11 @@ class AuthController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => Str::limit((string) $request->userAgent(), 500, ''),
         ]);
+
+        // Új eszköz / IP? → biztonsági email
+        if (! $this->securityNotify->isKnownDevice($user, $request, $newToken->accessToken->id)) {
+            $this->securityNotify->newDeviceLogin($user, $request);
+        }
 
         return response()->json([
             'data' => [

@@ -17,10 +17,16 @@ import {
   type TwoFactorStatus,
   type TwoFactorEnableResponse,
 } from '@/services/twoFactor'
+import {
+  requestEmailChange,
+  cancelEmailChange,
+} from '@/services/emailChange'
+import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 
 const { t } = useI18n()
 const toast = useToastStore()
+const authStore = useAuthStore()
 
 // --- Password form ---
 const currentPassword = ref('')
@@ -138,6 +144,51 @@ function formatRelative(iso: string | null): string {
   return d.toLocaleDateString()
 }
 
+// =================== EMAIL CHANGE ===================
+const emailChangeOpen = ref(false)
+const newEmail = ref('')
+const emailChangePassword = ref('')
+const emailChangeErrors = ref<Record<string, string[]>>({})
+const emailChangeLoading = ref(false)
+
+const currentEmail = computed(() => authStore.user?.email ?? '')
+const pendingEmail = computed(() => authStore.user?.pending_email ?? null)
+
+async function submitEmailChange() {
+  emailChangeErrors.value = {}
+  emailChangeLoading.value = true
+  try {
+    await requestEmailChange({
+      password: emailChangePassword.value,
+      new_email: newEmail.value,
+    })
+    toast.success('Megerősítő levelet küldtünk az új címre.')
+    emailChangeOpen.value = false
+    newEmail.value = ''
+    emailChangePassword.value = ''
+    await authStore.fetchUser()
+  } catch (err: any) {
+    if (err.response?.data?.errors) {
+      emailChangeErrors.value = err.response.data.errors
+    } else {
+      toast.error(err.response?.data?.message ?? 'Sikertelen.')
+    }
+  } finally {
+    emailChangeLoading.value = false
+  }
+}
+
+async function cancelPendingEmailChange() {
+  if (!confirm('Biztosan visszavonod a függőben lévő email-változtatást?')) return
+  try {
+    await cancelEmailChange()
+    toast.success('Email-változtatás visszavonva.')
+    await authStore.fetchUser()
+  } catch (err: any) {
+    toast.error(err.response?.data?.message ?? 'Sikertelen.')
+  }
+}
+
 // =================== 2FA ===================
 const twoFaStatus = ref<TwoFactorStatus | null>(null)
 const twoFaSetup = ref<TwoFactorEnableResponse | null>(null)
@@ -234,6 +285,87 @@ onMounted(() => {
 
 <template>
   <div class="space-y-8">
+
+    <!-- Email cím szekció -->
+    <section class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Email cím</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Az email címedhez fűződik a bejelentkezés és a fiók-értesítések küldése.
+        </p>
+      </div>
+      <div class="p-6 space-y-4">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Jelenlegi:</span>
+          <code class="font-mono text-sm px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">{{ currentEmail }}</code>
+        </div>
+
+        <!-- Pending állapot -->
+        <div v-if="pendingEmail" class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <p class="text-sm text-amber-900 dark:text-amber-200">
+            Függőben: az új cím (<code class="font-mono">{{ pendingEmail }}</code>) megerősítésére várunk.
+            Nézd meg az új címen kapott levelet, és kattints a megerősítő linkre.
+          </p>
+          <button
+            @click="cancelPendingEmailChange"
+            class="mt-3 text-xs px-3 py-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded border border-red-300 dark:border-red-700"
+          >
+            Változtatás visszavonása
+          </button>
+        </div>
+
+        <div v-else>
+          <button
+            v-if="!emailChangeOpen"
+            @click="emailChangeOpen = true"
+            class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            Email cím módosítása
+          </button>
+
+          <form v-else @submit.prevent="submitEmailChange" class="space-y-3 max-w-md">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Új email cím</label>
+              <input
+                v-model="newEmail"
+                type="email"
+                required
+                class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500"
+              />
+              <p v-if="emailChangeErrors.new_email" class="mt-1 text-xs text-red-600">{{ emailChangeErrors.new_email[0] }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jelenlegi jelszó</label>
+              <input
+                v-model="emailChangePassword"
+                type="password"
+                required
+                autocomplete="current-password"
+                class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500"
+              />
+              <p v-if="emailChangeErrors.password" class="mt-1 text-xs text-red-600">{{ emailChangeErrors.password[0] }}</p>
+            </div>
+            <div class="flex gap-2">
+              <button
+                type="submit"
+                :disabled="emailChangeLoading"
+                class="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white text-sm font-medium rounded-lg"
+              >
+                {{ emailChangeLoading ? '…' : 'Megerősítő levél küldése' }}
+              </button>
+              <button
+                type="button"
+                @click="emailChangeOpen = false; emailChangeErrors = {}; newEmail = ''; emailChangePassword = ''"
+                class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
+              >
+                Mégse
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
     <!-- Password section -->
     <section class="bg-white dark:bg-gray-800 rounded-lg shadow">
       <div class="p-6 border-b border-gray-200 dark:border-gray-700">

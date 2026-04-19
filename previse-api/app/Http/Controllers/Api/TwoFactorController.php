@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Auth\AuthController;
 use App\Models\Membership;
+use App\Services\SecurityNotificationService;
 use App\Services\TwoFactorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class TwoFactorController extends Controller
 {
     public function __construct(
         private TwoFactorService $twoFactor,
+        private SecurityNotificationService $securityNotify,
     ) {}
 
     /**
@@ -124,6 +126,9 @@ class TwoFactorController extends Controller
             'two_factor_recovery_codes' => $recoveryCodes,
         ]);
 
+        // Biztonsági értesítés
+        $this->securityNotify->twoFactorEnabled($user, $request);
+
         return response()->json([
             'data' => [
                 'recovery_codes' => $recoveryCodes,
@@ -162,6 +167,8 @@ class TwoFactorController extends Controller
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
         ]);
+
+        $this->securityNotify->twoFactorDisabled($user, $request);
 
         return response()->json([
             'message' => __('auth.2fa_disabled'),

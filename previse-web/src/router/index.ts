@@ -24,6 +24,12 @@ const router = createRouter({
       meta: { guest: true },
     },
     {
+      path: '/email/confirm/:token',
+      name: 'confirm-email',
+      component: () => import('@/pages/auth/ConfirmEmailPage.vue'),
+      meta: { guest: true, allowAuth: true },
+    },
+    {
       path: '/select-organization',
       name: 'select-organization',
       component: () => import('@/pages/auth/SelectOrganizationPage.vue'),
@@ -133,8 +139,8 @@ router.beforeEach(async (to, from) => {
     return { name: 'dashboard' }
   }
 
-  // Ha guest oldal, de be van jelentkezve
-  if (to.meta.guest && authStore.isAuthenticated && !authStore.isLocked) {
+  // Ha guest oldal, de be van jelentkezve (kivéve ha allowAuth is van, pl. email-megerősítés)
+  if (to.meta.guest && !to.meta.allowAuth && authStore.isAuthenticated && !authStore.isLocked) {
     return { name: 'dashboard' }
   }
 

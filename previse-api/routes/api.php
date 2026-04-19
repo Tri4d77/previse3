@@ -32,6 +32,9 @@ Route::prefix('v1/auth')->group(function () {
     Route::post('/accept-invitation', [AuthController::class, 'acceptInvitation'])->name('auth.accept-invitation');
     Route::get('/invitation/{token}', [AuthController::class, 'invitationInfo'])->name('auth.invitation-info');
 
+    // Email-v\u00e1ltoztat\u00e1s meger\u0151s\u00edt\u0151 tokennel (publikus, nincs auth sz\u00fcks\u00e9ges - M6)
+    Route::post('/email/confirm', [ProfileController::class, 'confirmEmailChange'])->name('auth.email.confirm');
+
     // Szervezet-választás belépés után (csak organization-selection ability tokennel)
     Route::middleware('auth:sanctum')
         ->post('/select-organization', [AuthController::class, 'selectOrganization'])
@@ -52,6 +55,10 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/profile/sessions', [ProfileController::class, 'sessions'])->name('profile.sessions.index');
     Route::delete('/profile/sessions/others', [ProfileController::class, 'destroyOtherSessions'])->name('profile.sessions.destroy-others');
     Route::delete('/profile/sessions/{id}', [ProfileController::class, 'destroySession'])->whereNumber('id')->name('profile.sessions.destroy');
+
+    // --- Email-c\u00edm v\u00e1ltoztat\u00e1s (M6) ---
+    Route::post('/profile/email/change', [ProfileController::class, 'requestEmailChange'])->name('profile.email.change');
+    Route::delete('/profile/email/pending', [ProfileController::class, 'cancelEmailChange'])->name('profile.email.cancel');
 
     // --- 2FA (M5) ---
     Route::get('/profile/2fa/status', [TwoFactorController::class, 'status'])->name('profile.2fa.status');

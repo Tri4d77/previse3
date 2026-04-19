@@ -127,4 +127,12 @@ return [
 
     'invitation_expires_days' => env('AUTH_INVITATION_EXPIRES_DAYS', 7),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email change token expiration
+    |--------------------------------------------------------------------------
+    | Email-cím változtatás megerősítő tokenjének érvényessége percben.
+    */
+    'email_change_expires_minutes' => env('AUTH_EMAIL_CHANGE_EXPIRES_MINUTES', 60),
+
 ];

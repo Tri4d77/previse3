@@ -3,9 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\EmailChangeConfirmMail;
+use App\Mail\EmailChangeNoticeMail;
+use App\Models\User;
+use App\Services\SecurityNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -22,6 +30,10 @@ use Illuminate\Validation\ValidationException;
  */
 class ProfileController extends Controller
 {
+    public function __construct(
+        private SecurityNotificationService $securityNotify,
+    ) {}
+
     /**
      * PUT /api/v1/profile/password
      *
@@ -66,6 +78,9 @@ class ProfileController extends Controller
                 ->when($currentTokenId, fn ($q) => $q->where('id', '!=', $currentTokenId))
                 ->delete();
         }
+
+        // Biztonsági értesítés email
+        $this->securityNotify->passwordChanged($user, $request);
 
         return response()->json([
             'message' => __('auth.password_changed'),
@@ -153,5 +168,165 @@ class ProfileController extends Controller
             'message' => __('auth.other_sessions_revoked'),
             'revoked_count' => $count,
         ]);
+    }
+
+    // ============== EMAIL CHANGE FLOW (M6) ==============
+
+    /**
+     * POST /api/v1/profile/email/change
+     *
+     * Email-cím változtatási kérés indítása:
+     *  - jelszó megerősítés
+     *  - új email egyedi (még nem foglalt)
+     *  - nem azonos a jelenlegivel
+     *  - pending_email + email_change_token + email_change_sent_at elmentve
+     *  - megerősítő link kimegy az ÚJ címre
+     *  - tájékoztató email kimegy a RÉGI címre (biztonsági értesítés)
+     */
+    public function requestEmailChange(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'password' => ['required', 'string'],
+            'new_email' => [
+                'required', 'string', 'email', 'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+        ]);
+
+        if (! Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => [__('auth.password')],
+            ]);
+        }
+
+        if (strtolower($validated['new_email']) === strtolower($user->email)) {
+            throw ValidationException::withMessages([
+                'new_email' => [__('auth.email_same_as_current')],
+            ]);
+        }
+
+        $token = Str::random(64);
+        $user->update([
+            'pending_email' => $validated['new_email'],
+            'email_change_token' => $token,
+            'email_change_sent_at' => now(),
+        ]);
+
+        $expiresInMinutes = (int) config('auth.email_change_expires_minutes', 60);
+        $locale = $user->settings?->locale ?? app()->getLocale();
+        $confirmUrl = rtrim(config('app.frontend_url'), '/') . '/email/confirm/' . $token;
+
+        // Megerősítő email az ÚJ címre
+        try {
+            Mail::send(new EmailChangeConfirmMail(
+                userName: $user->name ?? '',
+                oldEmail: $user->email,
+                newEmail: $validated['new_email'],
+                confirmUrl: $confirmUrl,
+                expiresInMinutes: $expiresInMinutes,
+                locale: $locale,
+            ));
+        } catch (\Throwable $e) {
+            Log::error('Email change confirm mail failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+        }
+
+        // Tájékoztató email a RÉGI címre
+        try {
+            Mail::send(new EmailChangeNoticeMail(
+                recipientEmail: $user->email,
+                userName: $user->name ?? '',
+                newEmail: $validated['new_email'],
+                requestedAt: now()->toDateTimeString(),
+                ipAddress: (string) $request->ip(),
+                locale: $locale,
+            ));
+        } catch (\Throwable $e) {
+            Log::error('Email change notice mail failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+        }
+
+        return response()->json([
+            'message' => __('auth.email_change_requested'),
+            'pending_email' => $validated['new_email'],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/profile/email/confirm
+     *
+     * Megerősítő tokennel élesíti az új email-t.
+     * NEM szükséges authentikáció (a link és token az egyetlen igazolás).
+     */
+    public function confirmEmailChange(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string'],
+        ]);
+
+        $user = User::where('email_change_token', $validated['token'])
+            ->whereNotNull('pending_email')
+            ->first();
+
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'token' => [__('auth.email_change_invalid')],
+            ]);
+        }
+
+        $expiresInMinutes = (int) config('auth.email_change_expires_minutes', 60);
+        if (! $user->email_change_sent_at || $user->email_change_sent_at->diffInMinutes(now()) > $expiresInMinutes) {
+            throw ValidationException::withMessages([
+                'token' => [__('auth.email_change_expired')],
+            ]);
+        }
+
+        // Még egyszer ellenőrizzük, hogy az új email ne legyen foglalt
+        $newEmail = $user->pending_email;
+        if (User::where('email', $newEmail)->where('id', '!=', $user->id)->exists()) {
+            throw ValidationException::withMessages([
+                'new_email' => [__('auth.email_already_taken')],
+            ]);
+        }
+
+        $oldEmail = $user->email;
+        $user->update([
+            'email' => $newEmail,
+            'pending_email' => null,
+            'email_change_token' => null,
+            'email_change_sent_at' => null,
+            // új címet megerősítettnek tekintjük
+            'email_verified_at' => $user->email_verified_at ?? now(),
+        ]);
+
+        // Biztonsági értesítés a régi címre
+        $this->securityNotify->emailChanged($user, $oldEmail, $request);
+
+        return response()->json([
+            'message' => __('auth.email_change_confirmed'),
+            'email' => $newEmail,
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/profile/email/pending
+     *
+     * Folyamatban lévő email-változtatás visszavonása (auth szükséges).
+     */
+    public function cancelEmailChange(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (is_null($user->pending_email)) {
+            return response()->json(['message' => __('auth.email_change_nothing_pending')], 422);
+        }
+
+        $user->update([
+            'pending_email' => null,
+            'email_change_token' => null,
+            'email_change_sent_at' => null,
+        ]);
+
+        return response()->json(['message' => __('auth.email_change_cancelled')]);
     }
 }

@@ -38,4 +38,14 @@ return [
     '2fa_enabled' => 'Kétfaktoros hitelesítés sikeresen bekapcsolva. Mentsd el a recovery kódokat biztonságos helyre.',
     '2fa_disabled' => 'Kétfaktoros hitelesítés kikapcsolva.',
     '2fa_recovery_codes_regenerated' => 'Új recovery kódok generálva. A régiek már nem használhatók.',
+
+    // Email-cím változtatás (M6)
+    'email_same_as_current' => 'Az új email cím nem egyezhet meg a jelenlegivel.',
+    'email_already_taken' => 'Ez az email cím már foglalt.',
+    'email_change_requested' => 'Megerősítő levelet küldtünk az új címre. Kattints rá a változás érvényesítéséhez.',
+    'email_change_confirmed' => 'Az email cím sikeresen módosítva.',
+    'email_change_cancelled' => 'Az email-változtatási kérés visszavonva.',
+    'email_change_invalid' => 'Érvénytelen vagy már felhasznált megerősítő link.',
+    'email_change_expired' => 'A megerősítő link lejárt. Kezdd újra a változtatást.',
+    'email_change_nothing_pending' => 'Nincs folyamatban email-változtatás.',
 ];
