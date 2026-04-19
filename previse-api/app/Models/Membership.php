@@ -88,7 +88,7 @@ class Membership extends Model
     }
 
     /**
-     * Lejárt meghívó (7 nap).
+     * Lejárt meghívó (alapértelmezett: config/auth.php invitation_expires_days).
      */
     public function isInvitationExpired(): bool
     {
@@ -96,7 +96,9 @@ class Membership extends Model
             return false;
         }
 
-        return $this->invitation_sent_at->diffInDays(now()) > 7;
+        $expiresInDays = (int) config('auth.invitation_expires_days', 7);
+
+        return $this->invitation_sent_at->diffInDays(now()) > $expiresInDays;
     }
 
     // ========== STATIKUS HELPER-EK ==========

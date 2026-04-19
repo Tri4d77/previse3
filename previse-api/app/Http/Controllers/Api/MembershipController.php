@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\InvitationMail;
 use App\Models\Membership;
 use App\Models\Organization;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class MembershipController extends Controller
 {
@@ -214,11 +216,14 @@ class MembershipController extends Controller
 
             $membership->load(['user', 'role', 'organization']);
 
+            $invitationUrl = $this->buildInvitationUrl($invitationToken);
+            $this->sendInvitationMail($membership, $invitationUrl, $authUser);
+
             return response()->json([
                 'data' => $this->formatMembership($membership),
                 'message' => 'Meghívó elküldve a létező felhasználónak.',
                 'is_existing_user' => true,
-                'invitation_url' => $this->buildInvitationUrl($invitationToken),
+                'invitation_url' => $invitationUrl,
             ], 201);
         }
 
@@ -251,11 +256,14 @@ class MembershipController extends Controller
 
         $membership->load(['user', 'role', 'organization']);
 
+        $invitationUrl = $this->buildInvitationUrl($invitationToken);
+        $this->sendInvitationMail($membership, $invitationUrl, $authUser);
+
         return response()->json([
             'data' => $this->formatMembership($membership),
             'message' => 'Meghívó elküldve.',
             'is_existing_user' => false,
-            'invitation_url' => $this->buildInvitationUrl($invitationToken),
+            'invitation_url' => $invitationUrl,
         ], 201);
     }
 
@@ -283,10 +291,13 @@ class MembershipController extends Controller
 
         $membership->load(['user', 'role', 'organization']);
 
+        $invitationUrl = $this->buildInvitationUrl($newToken);
+        $this->sendInvitationMail($membership, $invitationUrl, $request->user());
+
         return response()->json([
             'data' => $this->formatMembership($membership),
             'message' => 'Meghívó sikeresen újraküldve.',
-            'invitation_url' => $this->buildInvitationUrl($newToken),
+            'invitation_url' => $invitationUrl,
         ]);
     }
 
@@ -421,10 +432,13 @@ class MembershipController extends Controller
 
         $membership->load(['user', 'role', 'organization']);
 
+        $invitationUrl = $this->buildInvitationUrl($newToken);
+        $this->sendInvitationMail($membership, $invitationUrl, $request->user());
+
         return response()->json([
             'data' => $this->formatMembership($membership),
             'message' => 'Tagság visszaállítva, új meghívó generálva.',
-            'invitation_url' => $this->buildInvitationUrl($newToken),
+            'invitation_url' => $invitationUrl,
         ]);
     }
 
@@ -471,6 +485,33 @@ class MembershipController extends Controller
     private function buildInvitationUrl(string $token): string
     {
         return rtrim(config('app.frontend_url'), '/') . '/invitation/' . $token;
+    }
+
+    /**
+     * Meghívó email küldése a membership címzettjének.
+     *
+     * A küldést try/catch-be tesszük: ha SMTP probléma van, a membership akkor is
+     * létrejön (az admin látja az invitation_url-t a response-ban), de a hibát
+     * logoljuk. Éles mail queue használatakor (ShouldQueue) a tényleges hibakezelés
+     * a worker jobon fog történni.
+     */
+    private function sendInvitationMail(Membership $membership, string $invitationUrl, ?User $inviter): void
+    {
+        try {
+            $expiresInDays = (int) config('auth.invitation_expires_days', 7);
+            Mail::send(new InvitationMail(
+                membership: $membership,
+                invitationUrl: $invitationUrl,
+                inviterName: $inviter?->name,
+                expiresInDays: $expiresInDays,
+            ));
+        } catch (\Throwable $e) {
+            Log::error('Invitation email sending failed', [
+                'membership_id' => $membership->id,
+                'email' => $membership->user->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

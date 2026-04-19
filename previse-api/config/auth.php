@@ -114,4 +114,17 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Invitation Expiration
+    |--------------------------------------------------------------------------
+    |
+    | Hány napig érvényes egy membership meghívó (az invitation_sent_at-tól
+    | számolva). Ezt használja a Membership::isInvitationExpired() és az
+    | InvitationMail email sablon ("A meghívó X nap után lejár.").
+    |
+    */
+
+    'invitation_expires_days' => env('AUTH_INVITATION_EXPIRES_DAYS', 7),
+
 ];

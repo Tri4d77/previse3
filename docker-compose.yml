@@ -52,6 +52,23 @@ services:
       timeout: 5s
       retries: 10
 
+  # ========== Mailpit (fejlesztői SMTP + webUI) ==========
+  # SMTP:  mailpit:1025  (konténeren belül)
+  # WebUI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: previse-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"   # webUI
+      - "1025:1025"   # SMTP (host-ról tesztelhető)
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - previse
+
   # ========== phpMyAdmin (opcionális, DB kezeléshez) ==========
   phpmyadmin:
     image: phpmyadmin:latest

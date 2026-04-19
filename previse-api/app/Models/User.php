@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -233,5 +234,16 @@ class User extends Authenticatable
         }
 
         return $membership->hasPermission($permission);
+    }
+
+    // ========== NOTIFICATIONS ==========
+
+    /**
+     * A Laravel alapértelmezett jelszó-visszaállítási notification felülírása,
+     * hogy saját Blade sablonunkat használjuk (HU/EN, Previse brand).
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }
