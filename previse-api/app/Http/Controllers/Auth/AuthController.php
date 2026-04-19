@@ -90,7 +90,42 @@ class AuthController extends Controller
             'last_login_ip' => $request->ip(),
         ]);
 
-        // Szervezet-választó logika
+        // 2FA ellenőrzés: ha aktív, challenge tokent adunk vissza
+        if ($user->hasTwoFactorEnabled()) {
+            $challengeToken = $user->createToken(
+                '2fa-challenge',
+                ['2fa:verify'],
+                now()->addMinutes(5)
+            )->plainTextToken;
+
+            return response()->json([
+                'requires_two_factor' => true,
+                'challenge_token' => $challengeToken,
+            ]);
+        }
+
+        return $this->issueLoginSuccessResponse($user, $request);
+    }
+
+    /**
+     * Login utáni sikeres válasz felépítése:
+     *  - 1 aktív tagság vagy default_organization_id → direkt bejelentkezés tokennel
+     *  - több aktív tagság, nincs default → selection_token + memberships lista
+     *
+     * Külön metódus, hogy a 2FA challenge is tudja hívni sikeres kód után.
+     */
+    public function issueLoginSuccessResponse(User $user, Request $request): JsonResponse
+    {
+        $activeMemberships = $user->activeMemberships()
+            ->with(['organization', 'role'])
+            ->get();
+
+        if ($activeMemberships->isEmpty()) {
+            throw ValidationException::withMessages([
+                'email' => [__('auth.no_active_membership')],
+            ]);
+        }
+
         $settings = $user->getOrCreateSettings();
         $defaultOrgId = $settings->default_organization_id;
 
@@ -108,7 +143,6 @@ class AuthController extends Controller
         }
 
         // Több aktív tagság, nincs default → szervezet-választó szükséges
-        // Egy ideiglenes tokent adunk vissza, ami csak a select-organization-höz használható
         $selectionToken = $user->createToken(
             'organization-selection',
             ['organization:select'],

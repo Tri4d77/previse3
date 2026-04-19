@@ -89,7 +89,15 @@ export interface LoginSelectionResponse {
   memberships: Membership[]
 }
 
-export type LoginResponse = LoginDirectResponse | LoginSelectionResponse
+/**
+ * 2FA challenge szükséges (a user-nél aktív a kétfaktoros hitelesítés).
+ */
+export interface LoginTwoFactorResponse {
+  requires_two_factor: true
+  challenge_token: string
+}
+
+export type LoginResponse = LoginDirectResponse | LoginSelectionResponse | LoginTwoFactorResponse
 
 /**
  * /auth/user (bejelentkezett állapot).

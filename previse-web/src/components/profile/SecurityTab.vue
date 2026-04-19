@@ -8,6 +8,15 @@ import {
   revokeOtherSessions,
   type SessionItem,
 } from '@/services/profile'
+import {
+  fetchStatus as fetch2faStatus,
+  enable as enable2fa,
+  confirm as confirm2fa,
+  disable as disable2fa,
+  regenerateRecoveryCodes as regen2faCodes,
+  type TwoFactorStatus,
+  type TwoFactorEnableResponse,
+} from '@/services/twoFactor'
 import { useToastStore } from '@/stores/toast'
 
 const { t } = useI18n()
@@ -129,7 +138,98 @@ function formatRelative(iso: string | null): string {
   return d.toLocaleDateString()
 }
 
-onMounted(loadSessions)
+// =================== 2FA ===================
+const twoFaStatus = ref<TwoFactorStatus | null>(null)
+const twoFaSetup = ref<TwoFactorEnableResponse | null>(null)
+const twoFaCode = ref('')
+const twoFaConfirming = ref(false)
+const twoFaConfirmError = ref('')
+const twoFaRecoveryCodes = ref<string[] | null>(null)
+
+const disablePassword = ref('')
+const disablingOpen = ref(false)
+const disablingError = ref('')
+
+async function load2faStatus() {
+  try {
+    twoFaStatus.value = await fetch2faStatus()
+  } catch {
+    /* swallow */
+  }
+}
+
+async function onStart2fa() {
+  try {
+    twoFaSetup.value = await enable2fa()
+    twoFaCode.value = ''
+    twoFaConfirmError.value = ''
+    twoFaRecoveryCodes.value = null
+  } catch (err: any) {
+    toast.error(err.response?.data?.message ?? 'Sikertelen.')
+  }
+}
+
+async function onConfirm2fa() {
+  twoFaConfirming.value = true
+  twoFaConfirmError.value = ''
+  try {
+    twoFaRecoveryCodes.value = await confirm2fa(twoFaCode.value.trim())
+    twoFaSetup.value = null
+    await load2faStatus()
+    toast.success('Kétfaktoros hitelesítés bekapcsolva.')
+  } catch (err: any) {
+    twoFaConfirmError.value = err.response?.data?.errors?.code?.[0] ?? 'Érvénytelen kód.'
+  } finally {
+    twoFaConfirming.value = false
+  }
+}
+
+async function onDisable2fa() {
+  disablingError.value = ''
+  try {
+    await disable2fa(disablePassword.value)
+    disablePassword.value = ''
+    disablingOpen.value = false
+    twoFaRecoveryCodes.value = null
+    await load2faStatus()
+    toast.success('Kétfaktoros hitelesítés kikapcsolva.')
+  } catch (err: any) {
+    disablingError.value = err.response?.data?.errors?.password?.[0] ?? err.response?.data?.message ?? 'Sikertelen.'
+  }
+}
+
+async function onRegenRecoveryCodes() {
+  if (!confirm('Új recovery kódok generálása — a régiek érvénytelenné válnak. Folytatod?')) return
+  try {
+    twoFaRecoveryCodes.value = await regen2faCodes()
+    toast.success('Új recovery kódok generálva.')
+  } catch (err: any) {
+    toast.error(err.response?.data?.message ?? 'Sikertelen.')
+  }
+}
+
+function downloadRecoveryCodes() {
+  if (!twoFaRecoveryCodes.value) return
+  const content = [
+    'Previse – 2FA recovery kódok',
+    `Generálva: ${new Date().toLocaleString()}`,
+    '',
+    ...twoFaRecoveryCodes.value,
+    '',
+    'Minden kód csak EGYSZER használható. Tárold biztonságos helyen.',
+  ].join('\n')
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = 'previse-recovery-codes.txt'
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
+onMounted(() => {
+  loadSessions()
+  load2faStatus()
+})
 </script>
 
 <template>
@@ -259,6 +359,135 @@ onMounted(loadSessions)
           >
             {{ t('profile.session_revoke') }}
           </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2FA szekció -->
+    <section class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Kétfaktoros hitelesítés (2FA)</h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Plusz biztonsági réteg: bejelentkezéskor egy authenticator app által generált 6 jegyű kód kell.
+          </p>
+        </div>
+        <span
+          v-if="twoFaStatus?.enabled"
+          class="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium"
+        >
+          Aktív
+        </span>
+        <span
+          v-else
+          class="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium"
+        >
+          Kikapcsolva
+        </span>
+      </div>
+
+      <div class="p-6">
+        <!-- Nincs aktív 2FA és nincs setup folyamatban → Bekapcsolás gomb -->
+        <div v-if="!twoFaStatus?.enabled && !twoFaSetup">
+          <button
+            @click="onStart2fa"
+            class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg"
+          >
+            2FA bekapcsolása
+          </button>
+        </div>
+
+        <!-- Setup folyamatban → QR + kód megerősítés -->
+        <div v-if="twoFaSetup" class="space-y-4">
+          <p class="text-sm text-gray-700 dark:text-gray-300">
+            1. Olvasd be a QR kódot egy authenticator appal (Google Authenticator, 1Password, Authy…).
+          </p>
+
+          <div class="inline-block p-3 bg-white rounded-lg" v-html="twoFaSetup.qr_code_svg"></div>
+
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            Vagy add hozzá kézzel ezt a secret kulcsot:
+            <code class="font-mono px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">{{ twoFaSetup.secret }}</code>
+          </p>
+
+          <p class="text-sm text-gray-700 dark:text-gray-300 pt-2">
+            2. Add meg az app által mutatott 6 jegyű kódot:
+          </p>
+
+          <div class="flex items-start gap-2">
+            <input
+              v-model="twoFaCode"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]{6}"
+              maxlength="6"
+              placeholder="000000"
+              class="w-40 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-center tracking-widest focus:ring-2 focus:ring-teal-500"
+            />
+            <button
+              @click="onConfirm2fa"
+              :disabled="twoFaConfirming || twoFaCode.length !== 6"
+              class="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white text-sm font-medium rounded-lg"
+            >
+              Megerősítés
+            </button>
+          </div>
+
+          <p v-if="twoFaConfirmError" class="text-sm text-red-600">{{ twoFaConfirmError }}</p>
+        </div>
+
+        <!-- Recovery kódok (frissen generált / újragenerált) -->
+        <div v-if="twoFaRecoveryCodes" class="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <h3 class="font-medium text-amber-900 dark:text-amber-200 mb-2">Recovery kódok — mentsd el most!</h3>
+          <p class="text-xs text-amber-800 dark:text-amber-300 mb-3">
+            Minden kód EGYSZER használható. Ha elveszítenéd az authenticator appot, ezekkel tudsz még belépni.
+          </p>
+          <div class="grid grid-cols-2 gap-2 mb-3 font-mono text-sm">
+            <code v-for="c in twoFaRecoveryCodes" :key="c" class="px-3 py-1.5 bg-white dark:bg-gray-800 rounded border border-amber-300">{{ c }}</code>
+          </div>
+          <button
+            @click="downloadRecoveryCodes"
+            class="text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded"
+          >
+            Letöltés (.txt)
+          </button>
+        </div>
+
+        <!-- Aktív 2FA → disable + regenerate gombok -->
+        <div v-if="twoFaStatus?.enabled && !twoFaSetup" class="space-y-3">
+          <button
+            @click="onRegenRecoveryCodes"
+            class="text-sm px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            Új recovery kódok generálása
+          </button>
+
+          <div>
+            <button
+              v-if="!disablingOpen"
+              @click="disablingOpen = true"
+              class="text-sm px-3 py-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded border border-red-300 dark:border-red-700"
+            >
+              2FA kikapcsolása
+            </button>
+
+            <div v-else class="flex items-start gap-2 mt-2">
+              <input
+                v-model="disablePassword"
+                type="password"
+                placeholder="Jelenlegi jelszó"
+                class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+                autocomplete="current-password"
+              />
+              <button @click="onDisable2fa" class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg">
+                Megerősítés
+              </button>
+              <button @click="disablingOpen = false; disablePassword = ''; disablingError = ''" class="px-3 py-2 text-sm text-gray-500">
+                Mégse
+              </button>
+            </div>
+            <p v-if="disablingError" class="mt-1 text-xs text-red-600">{{ disablingError }}</p>
+          </div>
         </div>
       </div>
     </section>

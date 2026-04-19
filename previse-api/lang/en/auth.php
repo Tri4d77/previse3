@@ -28,4 +28,14 @@ return [
     'session_not_found' => 'Session not found.',
     'session_revoked' => 'Session successfully revoked.',
     'other_sessions_revoked' => 'All other devices have been logged out.',
+
+    // Two-factor authentication (M5)
+    '2fa_already_enabled' => 'Two-factor authentication is already enabled. Disable it first to reconfigure.',
+    '2fa_not_enabled' => 'Two-factor authentication is not enabled.',
+    '2fa_setup_not_started' => 'No 2FA setup in progress. Start the enable flow first.',
+    '2fa_invalid_code' => 'Invalid verification code.',
+    '2fa_code_required' => 'Please provide either the 6-digit code or a recovery code.',
+    '2fa_enabled' => 'Two-factor authentication successfully enabled. Save the recovery codes in a safe place.',
+    '2fa_disabled' => 'Two-factor authentication has been disabled.',
+    '2fa_recovery_codes_regenerated' => 'New recovery codes generated. The old ones can no longer be used.',
 ];

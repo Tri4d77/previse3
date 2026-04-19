@@ -15,6 +15,12 @@ const showPassword = ref(false)
 const error = ref('')
 const loading = ref(false)
 
+// 2FA challenge state
+const twoFactorMode = ref(false)
+const twoFactorCode = ref('')
+const useRecoveryCode = ref(false)
+const recoveryCode = ref('')
+
 async function handleLogin() {
   error.value = ''
   loading.value = true
@@ -22,11 +28,12 @@ async function handleLogin() {
   try {
     const response = await authStore.login({ email: email.value, password: password.value })
 
-    if ('requires_organization_selection' in response) {
-      // Több tagság, nincs default → szervezet-választó oldal
+    if ('requires_two_factor' in response) {
+      // 2FA challenge szükséges → átváltunk 2FA módba
+      twoFactorMode.value = true
+    } else if ('requires_organization_selection' in response) {
       router.push({ name: 'select-organization' })
     } else {
-      // Direkt belépés
       router.push({ name: 'dashboard' })
     }
   } catch (err: any) {
@@ -41,6 +48,39 @@ async function handleLogin() {
   } finally {
     loading.value = false
   }
+}
+
+async function handleVerifyTwoFactor() {
+  error.value = ''
+  loading.value = true
+
+  try {
+    const params = useRecoveryCode.value
+      ? { recoveryCode: recoveryCode.value.trim() }
+      : { code: twoFactorCode.value.trim() }
+
+    const response = await authStore.verifyTwoFactor(params)
+
+    if ('requires_organization_selection' in response) {
+      router.push({ name: 'select-organization' })
+    } else {
+      router.push({ name: 'dashboard' })
+    }
+  } catch (err: any) {
+    const apiError = err.response?.data as ApiError
+    error.value = apiError?.errors?.code?.[0] ?? apiError?.message ?? 'Érvénytelen kód.'
+  } finally {
+    loading.value = false
+  }
+}
+
+function cancelTwoFactor() {
+  twoFactorMode.value = false
+  twoFactorCode.value = ''
+  recoveryCode.value = ''
+  useRecoveryCode.value = false
+  error.value = ''
+  authStore.clearAuth()
 }
 </script>
 
@@ -83,11 +123,75 @@ async function handleLogin() {
         <!-- Form kártya -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700">
           <div class="text-center mb-8">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('auth.login') }}</h2>
-            <p class="text-gray-500 dark:text-gray-400 mt-2 text-sm">{{ t('auth.sign_in_desc') }}</p>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
+              {{ twoFactorMode ? 'Kétfaktoros hitelesítés' : t('auth.login') }}
+            </h2>
+            <p class="text-gray-500 dark:text-gray-400 mt-2 text-sm">
+              {{ twoFactorMode
+                ? (useRecoveryCode ? 'Adj meg egy recovery kódot.' : 'Add meg az authenticator alkalmazás által generált 6 jegyű kódot.')
+                : t('auth.sign_in_desc') }}
+            </p>
           </div>
 
-          <form @submit.prevent="handleLogin" class="space-y-5">
+          <!-- 2FA Challenge form -->
+          <form v-if="twoFactorMode" @submit.prevent="handleVerifyTwoFactor" class="space-y-5">
+            <div v-if="!useRecoveryCode">
+              <label for="totp" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                6 jegyű kód
+              </label>
+              <input
+                v-model="twoFactorCode"
+                type="text"
+                id="totp"
+                inputmode="numeric"
+                pattern="[0-9]{6}"
+                maxlength="6"
+                required
+                autofocus
+                autocomplete="one-time-code"
+                class="block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                placeholder="000000"
+              />
+            </div>
+            <div v-else>
+              <label for="recovery" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Recovery kód
+              </label>
+              <input
+                v-model="recoveryCode"
+                type="text"
+                id="recovery"
+                required
+                autofocus
+                autocomplete="off"
+                class="block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                placeholder="XXXXX-XXXXX"
+              />
+            </div>
+
+            <div v-if="error" class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <span class="text-sm text-red-700 dark:text-red-400">{{ error }}</span>
+            </div>
+
+            <button
+              type="submit"
+              :disabled="loading"
+              class="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium rounded-lg focus:ring-4 focus:ring-teal-300 transition-all duration-200 text-sm"
+            >
+              {{ loading ? t('common.loading') : 'Megerősítés' }}
+            </button>
+
+            <div class="flex items-center justify-between text-xs">
+              <button type="button" @click="useRecoveryCode = !useRecoveryCode" class="text-teal-600 hover:text-teal-500 font-medium">
+                {{ useRecoveryCode ? 'Vissza a 6 jegyű kódhoz' : 'Recovery kód használata' }}
+              </button>
+              <button type="button" @click="cancelTwoFactor" class="text-gray-500 hover:text-gray-700 dark:text-gray-400">
+                Mégse
+              </button>
+            </div>
+          </form>
+
+          <form v-else @submit.prevent="handleLogin" class="space-y-5">
             <!-- Email -->
             <div>
               <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">

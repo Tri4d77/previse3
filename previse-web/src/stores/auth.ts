@@ -26,6 +26,9 @@ export const useAuthStore = defineStore('auth', () => {
   const selectionToken = ref<string | null>(null)
   const selectionMemberships = ref<Membership[]>([])
 
+  // 2FA challenge (ha a user-nél aktív a kétfaktoros hitelesítés)
+  const twoFactorChallengeToken = ref<string | null>(null)
+
   // ========== GETTERS ==========
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const needsOrganizationSelection = computed(() => !!selectionToken.value)
@@ -76,7 +79,10 @@ export const useAuthStore = defineStore('auth', () => {
 
       const data = response.data
 
-      if ('requires_organization_selection' in data) {
+      if ('requires_two_factor' in data) {
+        // 2FA challenge szükséges → nem tárolunk teljes authet, csak a challenge tokent
+        twoFactorChallengeToken.value = data.challenge_token
+      } else if ('requires_organization_selection' in data) {
         // Szervezet-választó szükséges
         selectionToken.value = data.selection_token
         selectionMemberships.value = data.memberships
@@ -94,6 +100,37 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  /**
+   * 2FA kód vagy recovery kód ellenőrzése a login utáni challenge lépésben.
+   * Ugyanazt a folyamatot követi, mint a login() válasz utáni feldolgozás.
+   */
+  async function verifyTwoFactor(params: { code?: string; recoveryCode?: string }): Promise<LoginResponse> {
+    if (!twoFactorChallengeToken.value) {
+      throw new Error('Nincs aktív 2FA challenge.')
+    }
+
+    const response = await api.post<LoginResponse>(
+      '/auth/2fa/challenge',
+      { code: params.code, recovery_code: params.recoveryCode },
+      { headers: { Authorization: `Bearer ${twoFactorChallengeToken.value}` } },
+    )
+
+    const data = response.data
+    twoFactorChallengeToken.value = null
+
+    if ('requires_organization_selection' in data) {
+      selectionToken.value = data.selection_token
+      selectionMemberships.value = data.memberships
+      localStorage.setItem('auth_token', data.selection_token)
+      token.value = data.selection_token
+    } else if ('data' in data) {
+      applyAuthData(data.data.user, data.data.current_membership, data.data.token, null, false)
+      await fetchUser()
+    }
+
+    return data
   }
 
   /**
@@ -251,12 +288,13 @@ export const useAuthStore = defineStore('auth', () => {
     user, token, currentMembership, contextOrganization,
     isSuperAdmin, isImpersonation, memberships, permissions,
     loading, isLocked, selectionToken, selectionMemberships,
+    twoFactorChallengeToken,
     // Getters
     isAuthenticated, needsOrganizationSelection, canManageOrganizations,
     userName, userEmail, userInitials,
     currentOrganizationName, currentOrganizationType, currentRoleName,
     // Actions
-    login, selectOrganization, switchOrganization,
+    login, verifyTwoFactor, selectOrganization, switchOrganization,
     enterOrganization, exitOrganization,
     fetchUser, logout, clearAuth,
     hasPermission, hasAnyPermission,

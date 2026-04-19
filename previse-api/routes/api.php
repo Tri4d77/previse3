@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -51,6 +52,17 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/profile/sessions', [ProfileController::class, 'sessions'])->name('profile.sessions.index');
     Route::delete('/profile/sessions/others', [ProfileController::class, 'destroyOtherSessions'])->name('profile.sessions.destroy-others');
     Route::delete('/profile/sessions/{id}', [ProfileController::class, 'destroySession'])->whereNumber('id')->name('profile.sessions.destroy');
+
+    // --- 2FA (M5) ---
+    Route::get('/profile/2fa/status', [TwoFactorController::class, 'status'])->name('profile.2fa.status');
+    Route::post('/profile/2fa/enable', [TwoFactorController::class, 'enable'])->name('profile.2fa.enable');
+    Route::post('/profile/2fa/confirm', [TwoFactorController::class, 'confirm'])->name('profile.2fa.confirm');
+    Route::post('/profile/2fa/disable', [TwoFactorController::class, 'disable'])->name('profile.2fa.disable');
+    Route::get('/profile/2fa/recovery-codes', [TwoFactorController::class, 'recoveryCodes'])->name('profile.2fa.recovery-codes');
+    Route::post('/profile/2fa/recovery-codes/regenerate', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('profile.2fa.recovery-codes.regenerate');
+
+    // Login ut\u00e1ni 2FA ellen\u0151rz\u00e9s (challenge token k\u00e9nt)
+    Route::post('/auth/2fa/challenge', [TwoFactorController::class, 'challenge'])->name('auth.2fa.challenge');
 
     // --- Szervezet-váltás ---
     Route::post('/auth/switch-organization', [AuthController::class, 'switchOrganization'])->name('auth.switch-organization');

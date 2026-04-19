@@ -28,4 +28,14 @@ return [
     'session_not_found' => 'A session nem található.',
     'session_revoked' => 'Session sikeresen kijelentkeztetve.',
     'other_sessions_revoked' => 'Minden más eszköz kijelentkeztetve.',
+
+    // Kétfaktoros hitelesítés (M5)
+    '2fa_already_enabled' => 'A kétfaktoros hitelesítés már be van kapcsolva. Előbb kapcsold ki, ha újra szeretnéd beállítani.',
+    '2fa_not_enabled' => 'A kétfaktoros hitelesítés nincs bekapcsolva.',
+    '2fa_setup_not_started' => 'Nincs folyamatban lévő 2FA beállítás. Előbb kezdd el a bekapcsolást.',
+    '2fa_invalid_code' => 'Érvénytelen ellenőrző kód.',
+    '2fa_code_required' => 'Kötelező megadni vagy a 6 jegyű kódot, vagy egy recovery kódot.',
+    '2fa_enabled' => 'Kétfaktoros hitelesítés sikeresen bekapcsolva. Mentsd el a recovery kódokat biztonságos helyre.',
+    '2fa_disabled' => 'Kétfaktoros hitelesítés kikapcsolva.',
+    '2fa_recovery_codes_regenerated' => 'Új recovery kódok generálva. A régiek már nem használhatók.',
 ];

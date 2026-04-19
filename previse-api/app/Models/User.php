@@ -59,6 +59,9 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            // 2FA: titkosítva tároljuk a secret-et és a recovery kódokat
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
         ];
     }
 
