@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\RendersInLocale;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -19,7 +20,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class ResetPasswordMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, RendersInLocale, SerializesModels;
 
     public function __construct(
         public string $recipientEmail,
@@ -28,9 +29,7 @@ class ResetPasswordMail extends Mailable implements ShouldQueue
         public int $expiresInMinutes,
         ?string $locale = null,
     ) {
-        if ($locale) {
-            $this->locale($locale);
-        }
+        $this->locale($locale ?: config('app.locale'));
     }
 
     public function envelope(): Envelope

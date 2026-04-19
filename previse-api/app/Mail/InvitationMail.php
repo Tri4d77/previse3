@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\RendersInLocale;
 use App\Models\Membership;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,7 +24,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class InvitationMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, RendersInLocale, SerializesModels;
 
     public function __construct(
         public Membership $membership,
@@ -31,11 +32,10 @@ class InvitationMail extends Mailable implements ShouldQueue
         public ?string $inviterName = null,
         public int $expiresInDays = 7,
     ) {
-        // Locale a címzett beállításából
-        $userLocale = $membership->user->settings?->locale;
-        if ($userLocale) {
-            $this->locale($userLocale);
-        }
+        // Locale a címzett beállításából; ha nincs, az app default (NEM a
+        // request locale, az csak az aktuális hívó user-hez tartozik).
+        $userLocale = $membership->user->settings?->locale ?: config('app.locale');
+        $this->locale($userLocale);
     }
 
     public function envelope(): Envelope

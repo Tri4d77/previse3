@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\RendersInLocale;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -16,7 +17,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class SecurityAlertMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, RendersInLocale, SerializesModels;
 
     /**
      * @param string $eventKey  lang/mail.php security.{eventKey} kulcs (pl. "password_changed")
@@ -35,9 +36,7 @@ class SecurityAlertMail extends Mailable implements ShouldQueue
         public array $introReplacements = [],
         ?string $locale = null,
     ) {
-        if ($locale) {
-            $this->locale($locale);
-        }
+        $this->locale($locale ?: config('app.locale'));
     }
 
     public function envelope(): Envelope

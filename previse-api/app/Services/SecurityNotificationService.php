@@ -21,7 +21,7 @@ class SecurityNotificationService
      */
     public function passwordChanged(User $user, Request $request): void
     {
-        $this->send($user, 'password_changed', $this->baseDetails($request));
+        $this->send($user, 'password_changed', $this->baseDetailsRaw($request));
     }
 
     /**
@@ -29,7 +29,7 @@ class SecurityNotificationService
      */
     public function twoFactorEnabled(User $user, Request $request): void
     {
-        $this->send($user, 'two_factor_enabled', $this->baseDetails($request));
+        $this->send($user, 'two_factor_enabled', $this->baseDetailsRaw($request));
     }
 
     /**
@@ -37,7 +37,7 @@ class SecurityNotificationService
      */
     public function twoFactorDisabled(User $user, Request $request): void
     {
-        $this->send($user, 'two_factor_disabled', $this->baseDetails($request));
+        $this->send($user, 'two_factor_disabled', $this->baseDetailsRaw($request));
     }
 
     /**
@@ -45,9 +45,8 @@ class SecurityNotificationService
      */
     public function emailChanged(User $user, string $oldEmail, Request $request): void
     {
-        $details = array_merge($this->baseDetails($request), [
-            __('mail.security.labels.time') => now()->toDateTimeString(),
-        ]);
+        $details = $this->baseDetailsRaw($request);
+        $details['time'] = now()->toDateTimeString();
 
         // Küldés a régi címre mégis (tájékoztató). Használjuk a SecurityAlertMail-t de külön email-lel.
         $this->sendToEmail($oldEmail, $user, 'email_changed', $details);
@@ -58,7 +57,7 @@ class SecurityNotificationService
      */
     public function newDeviceLogin(User $user, Request $request): void
     {
-        $this->send($user, 'new_device_login', $this->baseDetails($request));
+        $this->send($user, 'new_device_login', $this->baseDetailsRaw($request));
     }
 
     /**
@@ -66,9 +65,7 @@ class SecurityNotificationService
      */
     public function accountDeletionScheduled(User $user, ?Request $request = null): void
     {
-        $details = $request ? $this->baseDetails($request) : [
-            __('mail.security.labels.time') => now()->toDateTimeString(),
-        ];
+        $details = $request ? $this->baseDetailsRaw($request) : ['time' => now()->toDateTimeString()];
         $this->send($user, 'account_deletion_scheduled', $details);
     }
 
@@ -77,9 +74,7 @@ class SecurityNotificationService
      */
     public function accountDeletionCancelled(User $user, ?Request $request = null): void
     {
-        $details = $request ? $this->baseDetails($request) : [
-            __('mail.security.labels.time') => now()->toDateTimeString(),
-        ];
+        $details = $request ? $this->baseDetailsRaw($request) : ['time' => now()->toDateTimeString()];
         $this->send($user, 'account_deletion_cancelled', $details);
     }
 
@@ -163,14 +158,17 @@ class SecurityNotificationService
     }
 
     /**
-     * Közös részletek (idő, IP, eszköz string).
+     * Közös részletek NYERS formában (kulcsok: 'time', 'ip', 'device').
+     * A fordítást a Blade render-je végzi a címzett locale-jában, nem itt —
+     * különben queue worker futásakor a kulcsok az aktuális app locale-t
+     * tükröznék, nem a címzettét.
      */
-    private function baseDetails(Request $request): array
+    private function baseDetailsRaw(Request $request): array
     {
         return [
-            __('mail.security.labels.time') => now()->toDateTimeString(),
-            __('mail.security.labels.ip') => (string) $request->ip(),
-            __('mail.security.labels.device') => $this->shortUa((string) $request->userAgent()),
+            'time' => now()->toDateTimeString(),
+            'ip' => (string) $request->ip(),
+            'device' => $this->shortUa((string) $request->userAgent()),
         ];
     }
 

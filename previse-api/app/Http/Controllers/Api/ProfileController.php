@@ -355,6 +355,36 @@ class ProfileController extends Controller
         return response()->json(['message' => __('auth.email_change_cancelled')]);
     }
 
+    // ============== USER SETTINGS (M9) ==============
+
+    /**
+     * PUT /api/v1/settings
+     *
+     * Felhasználói beállítások módosítása (locale, theme, color_scheme, stb.).
+     * Részleges update: csak a megadott kulcsok változnak.
+     */
+    public function updateSettings(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'locale' => ['sometimes', 'string', Rule::in(['hu', 'en'])],
+            'theme' => ['sometimes', 'string', Rule::in(['light', 'dark', 'system'])],
+            'color_scheme' => ['sometimes', 'string', 'max:50'],
+            'timezone' => ['sometimes', 'string', 'max:50'],
+            'items_per_page' => ['sometimes', 'integer', 'min:10', 'max:100'],
+            'default_organization_id' => ['sometimes', 'nullable', 'integer', 'exists:organizations,id'],
+            'lockscreen_timeout_minutes' => ['sometimes', 'integer', 'min:1', 'max:1440'],
+            'notification_email' => ['sometimes', 'boolean'],
+            'notification_push' => ['sometimes', 'boolean'],
+            'notification_sound' => ['sometimes', 'boolean'],
+        ]);
+
+        $user = $request->user();
+        $settings = $user->getOrCreateSettings();
+        $settings->fill($validated)->save();
+
+        return response()->json(['data' => $settings->fresh()]);
+    }
+
     // ============== LOGIN HISTORY (M8) ==============
 
     /**

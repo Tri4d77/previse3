@@ -355,6 +355,9 @@
             </svg>
           </button>
 
+          <!-- Nyelvválasztó -->
+          <LanguageSwitcher class="ml-1" />
+
           <!-- Profile dropdown -->
           <div class="relative ml-1">
             <button
@@ -457,6 +460,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useInactivityTimer } from '@/composables/useInactivityTimer'
 import InactivityWarningModal from '@/components/common/InactivityWarningModal.vue'
 import OrgTreeNode from '@/components/common/OrgTreeNode.vue'
+import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
 import api from '@/services/api'
 import type { OrganizationNode } from '@/types'
 

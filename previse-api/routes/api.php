@@ -56,6 +56,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::delete('/profile/sessions/others', [ProfileController::class, 'destroyOtherSessions'])->name('profile.sessions.destroy-others');
     Route::delete('/profile/sessions/{id}', [ProfileController::class, 'destroySession'])->whereNumber('id')->name('profile.sessions.destroy');
 
+    // --- User settings (M9) ---
+    Route::put('/settings', [ProfileController::class, 'updateSettings'])->name('settings.update');
+
     // --- Login history (M8) ---
     Route::get('/profile/login-history', [ProfileController::class, 'loginHistory'])->name('profile.login-history');
 

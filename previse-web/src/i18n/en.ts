@@ -47,6 +47,27 @@ export default {
     password_hint: 'Minimum 8 characters, must include uppercase, lowercase and a number',
     invitation_expired: 'This invitation link has expired.',
     invitation_invalid: 'Invalid invitation link.',
+
+    // 2FA challenge (M5)
+    two_factor_title: 'Two-factor authentication',
+    two_factor_totp_desc: 'Enter the 6-digit code from your authenticator app.',
+    two_factor_recovery_desc: 'Enter a recovery code.',
+    two_factor_code: '6-digit code',
+    two_factor_recovery_label: 'Recovery code',
+    two_factor_verify: 'Verify',
+    two_factor_use_recovery: 'Use a recovery code',
+    two_factor_back_to_code: 'Back to 6-digit code',
+    two_factor_cancel: 'Cancel',
+    two_factor_invalid_code: 'Invalid code.',
+    two_factor_generic_error: 'An error occurred.',
+
+    // Account deletion pending login (M7)
+    deletion_decision_heading: 'Account deletion in progress',
+    deletion_decision_days: 'Your account is scheduled for deletion — it will be permanently removed in {days} days.',
+    deletion_decision_desc: 'You can only sign in on this cancel screen. If you do not cancel, after expiry your account will be anonymised (your name is kept).',
+    deletion_cancel_action: 'Cancel account deletion',
+    deletion_exit: 'Exit',
+
     lockscreen: 'Screen Locked',
     lockscreen_desc: 'The screen has been locked due to inactivity. Enter your password to unlock.',
     unlock: 'Unlock',

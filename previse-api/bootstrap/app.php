@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Később visszajönnek: permission, org.type
         // Sanctum stateful middleware az API-hoz (SPA mód)
         $middleware->statefulApi();
+
+        // Locale beállítása minden API kérésnél (HU/EN)
+        $middleware->api(append: \App\Http\Middleware\SetLocale::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

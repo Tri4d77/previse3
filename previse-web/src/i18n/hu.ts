@@ -47,6 +47,27 @@ export default {
     password_hint: 'Minimum 8 karakter, tartalmazzon nagybetűt, kisbetűt és számot',
     invitation_expired: 'A meghívó link lejárt.',
     invitation_invalid: 'Érvénytelen meghívó link.',
+
+    // 2FA challenge (M5)
+    two_factor_title: 'Kétfaktoros hitelesítés',
+    two_factor_totp_desc: 'Add meg az authenticator alkalmazás által generált 6 jegyű kódot.',
+    two_factor_recovery_desc: 'Adj meg egy recovery kódot.',
+    two_factor_code: '6 jegyű kód',
+    two_factor_recovery_label: 'Recovery kód',
+    two_factor_verify: 'Megerősítés',
+    two_factor_use_recovery: 'Recovery kód használata',
+    two_factor_back_to_code: 'Vissza a 6 jegyű kódhoz',
+    two_factor_cancel: 'Mégse',
+    two_factor_invalid_code: 'Érvénytelen kód.',
+    two_factor_generic_error: 'Hiba történt.',
+
+    // Fiók-törlés pending login (M7)
+    deletion_decision_heading: 'Fiók törlése folyamatban',
+    deletion_decision_days: 'A fiókod törlésre van ütemezve — {days} nap múlva véglegesen törlődik.',
+    deletion_decision_desc: 'Bejelentkezni csak ezen a visszavonó felületen tudsz. Ha nem vonod vissza, a lejárat után a fiókod anonimizálódik (a neved viszont megmarad).',
+    deletion_cancel_action: 'Fiók-törlés visszavonása',
+    deletion_exit: 'Kilépés',
+
     lockscreen: 'Képernyőzár',
     lockscreen_desc: 'A képernyő zárolva lett inaktivitás miatt. Add meg a jelszavadat a feloldáshoz.',
     unlock: 'Feloldás',

@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\RendersInLocale;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -15,7 +16,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class EmailChangeNoticeMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, RendersInLocale, SerializesModels;
 
     public function __construct(
         public string $recipientEmail,
@@ -25,9 +26,7 @@ class EmailChangeNoticeMail extends Mailable implements ShouldQueue
         public ?string $ipAddress = null,
         ?string $locale = null,
     ) {
-        if ($locale) {
-            $this->locale($locale);
-        }
+        $this->locale($locale ?: config('app.locale'));
     }
 
     public function envelope(): Envelope

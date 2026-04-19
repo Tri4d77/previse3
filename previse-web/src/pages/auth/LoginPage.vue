@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import type { ApiError } from '@/types'
+import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -120,7 +121,11 @@ function exitDeletionDecision() {
 </script>
 
 <template>
-  <div class="min-h-screen flex bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+  <div class="min-h-screen flex bg-gray-100 dark:bg-gray-900 transition-colors duration-300 relative">
+    <!-- Nyelvválasztó (jobb felső sarok) -->
+    <div class="absolute top-4 right-4 z-10">
+      <LanguageSwitcher />
+    </div>
 
     <!-- Bal oldal: Dekorációs panel -->
     <div class="hidden lg:flex lg:w-1/2 relative overflow-hidden items-center justify-center"
@@ -159,12 +164,12 @@ function exitDeletionDecision() {
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700">
           <div class="text-center mb-8">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
-              {{ twoFactorMode ? 'Kétfaktoros hitelesítés' : t('auth.login') }}
+              {{ twoFactorMode ? t('auth.two_factor_title') : (deletionDecisionMode ? t('auth.deletion_decision_heading') : t('auth.login')) }}
             </h2>
             <p class="text-gray-500 dark:text-gray-400 mt-2 text-sm">
               {{ twoFactorMode
-                ? (useRecoveryCode ? 'Adj meg egy recovery kódot.' : 'Add meg az authenticator alkalmazás által generált 6 jegyű kódot.')
-                : t('auth.sign_in_desc') }}
+                ? (useRecoveryCode ? t('auth.two_factor_recovery_desc') : t('auth.two_factor_totp_desc'))
+                : (deletionDecisionMode ? '' : t('auth.sign_in_desc')) }}
             </p>
           </div>
 
@@ -172,7 +177,7 @@ function exitDeletionDecision() {
           <form v-if="twoFactorMode" @submit.prevent="handleVerifyTwoFactor" class="space-y-5">
             <div v-if="!useRecoveryCode">
               <label for="totp" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                6 jegyű kód
+                {{ t('auth.two_factor_code') }}
               </label>
               <input
                 v-model="twoFactorCode"
@@ -190,7 +195,7 @@ function exitDeletionDecision() {
             </div>
             <div v-else>
               <label for="recovery" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Recovery kód
+                {{ t('auth.two_factor_recovery_label') }}
               </label>
               <input
                 v-model="recoveryCode"
@@ -213,15 +218,15 @@ function exitDeletionDecision() {
               :disabled="loading"
               class="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium rounded-lg focus:ring-4 focus:ring-teal-300 transition-all duration-200 text-sm"
             >
-              {{ loading ? t('common.loading') : 'Megerősítés' }}
+              {{ loading ? t('common.loading') : t('auth.two_factor_verify') }}
             </button>
 
             <div class="flex items-center justify-between text-xs">
               <button type="button" @click="useRecoveryCode = !useRecoveryCode" class="text-teal-600 hover:text-teal-500 font-medium">
-                {{ useRecoveryCode ? 'Vissza a 6 jegyű kódhoz' : 'Recovery kód használata' }}
+                {{ useRecoveryCode ? t('auth.two_factor_back_to_code') : t('auth.two_factor_use_recovery') }}
               </button>
               <button type="button" @click="cancelTwoFactor" class="text-gray-500 hover:text-gray-700 dark:text-gray-400">
-                Mégse
+                {{ t('auth.two_factor_cancel') }}
               </button>
             </div>
           </form>
@@ -230,15 +235,10 @@ function exitDeletionDecision() {
           <div v-else-if="deletionDecisionMode" class="space-y-5">
             <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <p class="text-sm text-red-900 dark:text-red-200">
-                A fiókod törlésre van ütemezve
-                <strong v-if="authStore.daysUntilDeletion">
-                  — {{ authStore.daysUntilDeletion }} nap múlva
-                </strong>
-                véglegesen törlődik.
+                {{ t('auth.deletion_decision_days', { days: authStore.daysUntilDeletion ?? '?' }) }}
               </p>
               <p class="text-xs text-red-800 dark:text-red-300 mt-2">
-                Bejelentkezni csak ezen a visszavonó felületen tudsz. Ha nem vonod vissza,
-                a lejárat után a fiókod anonimizálódik (a neved viszont megmarad).
+                {{ t('auth.deletion_decision_desc') }}
               </p>
             </div>
 
@@ -247,14 +247,14 @@ function exitDeletionDecision() {
               :disabled="loading"
               class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium rounded-lg transition-all"
             >
-              {{ loading ? t('common.loading') : 'Fiók-törlés visszavonása' }}
+              {{ loading ? t('common.loading') : t('auth.deletion_cancel_action') }}
             </button>
 
             <button
               @click="exitDeletionDecision"
               class="w-full py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
             >
-              Kilépés
+              {{ t('auth.deletion_exit') }}
             </button>
 
             <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
