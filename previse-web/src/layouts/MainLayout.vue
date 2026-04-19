@@ -552,43 +552,76 @@ async function loadOrgTree() {
   }
 }
 
+/**
+ * Egységes szervezet-váltó handler.
+ *
+ * Logika:
+ *  - Ha a usernek van valódi tagsága ebben a szervezetben → switchOrganization
+ *  - Ha nincs ÉS szuper-admin → enterOrganization (impersonation)
+ *  - Ha nincs ÉS nem szuper-admin → nem történhet (védelemként visszatér)
+ *
+ * Ugyanez a függvény kezeli:
+ *  - Szuper-admin fa-struktúra választást
+ *  - Normál lista választást
+ *  - Impersonation banner "Vissza a Platform-ra" gombját (Platform org id-val hívódik)
+ */
 async function handleSelectOrg(orgId: number) {
   orgSwitcherOpen.value = false
+
   try {
-    // Ha Platform-ra lépünk → exit
-    if (platformNode.value && orgId === platformNode.value.id) {
-      if (authStore.isImpersonation) {
-        await authStore.exitOrganization()
-      }
+    // Van-e valódi tagsága ehhez a szervezethez?
+    const existingMembership = authStore.memberships.find(
+      m => m.organization.id === orgId
+    )
+
+    if (existingMembership) {
+      await authStore.switchOrganization(existingMembership.id)
     } else if (authStore.isSuperAdmin) {
-      // Másik szervezetbe → enterOrganization
+      // Nincs tagság, de szuper-admin → impersonation
       await authStore.enterOrganization(orgId)
+    } else {
+      return
     }
-    // Router push, hogy a route guard ellenőrizze az új jogokat
+
     await router.push({ name: 'dashboard' })
   } catch (err) {
     console.error(err)
   }
 }
 
+/**
+ * "Vissza a Platform-ra" - impersonation banner gomb.
+ */
 async function handleExitOrg() {
   orgSwitcherOpen.value = false
+
   try {
-    await authStore.exitOrganization()
+    // Van-e Platform membership-je? Ha igen → switchOrganization, ha nincs → exit
+    const platformMembership = authStore.memberships.find(
+      m => m.organization.type === 'platform'
+    )
+
+    if (platformMembership) {
+      await authStore.switchOrganization(platformMembership.id)
+    } else {
+      // Tisztán impersonation (nincs Platform membership) → exit
+      await authStore.exitOrganization()
+    }
+
     await router.push({ name: 'dashboard' })
   } catch (err) {
     console.error(err)
   }
 }
 
+/**
+ * Normál lista elem (membership_id alapján) kattintás.
+ * Delegálja a handleSelectOrg-ra.
+ */
 async function handleSwitchMembership(membershipId: number) {
-  orgSwitcherOpen.value = false
-  try {
-    await authStore.switchOrganization(membershipId)
-    await router.push({ name: 'dashboard' })
-  } catch (err) {
-    console.error(err)
-  }
+  const membership = authStore.memberships.find(m => m.id === membershipId)
+  if (!membership) return
+  await handleSelectOrg(membership.organization.id)
 }
 const sidebarCollapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true')
 const sidebarHover = ref(false)

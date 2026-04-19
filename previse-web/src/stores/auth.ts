@@ -73,6 +73,8 @@ export const useAuthStore = defineStore('auth', () => {
       } else {
         // Direkt belépés
         applyAuthData(data.data.user, data.data.current_membership, data.data.token, null, false)
+        // Memberships lista, permissions, is_super_admin frissítése
+        await fetchUser()
       }
 
       return data
@@ -92,6 +94,8 @@ export const useAuthStore = defineStore('auth', () => {
     applyAuthData(data.user, data.current_membership, data.token, null, false)
     selectionToken.value = null
     selectionMemberships.value = []
+    // Teljes state frissítés (memberships lista, is_super_admin, stb.)
+    await fetchUser()
   }
 
   /**
@@ -103,6 +107,7 @@ export const useAuthStore = defineStore('auth', () => {
     })
     const data = response.data.data
     applyAuthData(data.user, data.current_membership, data.token, null, false)
+    await fetchUser()
   }
 
   /**
@@ -112,6 +117,7 @@ export const useAuthStore = defineStore('auth', () => {
     const response = await api.post(`/auth/enter-organization/${organizationId}`)
     const data = response.data.data
     applyAuthData(data.user, null, data.token, data.context_organization, true)
+    await fetchUser()
   }
 
   /**
@@ -121,6 +127,7 @@ export const useAuthStore = defineStore('auth', () => {
     const response = await api.post('/auth/exit-organization')
     const data = response.data.data
     applyAuthData(data.user, data.current_membership, data.token, null, false)
+    await fetchUser()
   }
 
   /**

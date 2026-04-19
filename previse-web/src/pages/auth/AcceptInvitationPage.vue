@@ -35,11 +35,16 @@ async function handleAccept() {
   error.value = ''
   loading.value = true
 
+  // Létező usernél a confirmation = password (mert csak ellenőrzés a jelenlegi jelszóval)
+  const confirmation = invitationData.value?.is_new_user
+    ? passwordConfirmation.value
+    : password.value
+
   try {
     await api.post('/auth/accept-invitation', {
       token,
       password: password.value,
-      password_confirmation: passwordConfirmation.value,
+      password_confirmation: confirmation,
     })
     success.value = true
     setTimeout(() => router.push({ name: 'login' }), 3000)
@@ -126,7 +131,12 @@ async function handleAccept() {
               </div>
               <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('auth.accept_invitation') }}</h2>
               <p class="text-gray-500 dark:text-gray-400 mt-2 text-sm">
-                {{ t('auth.accept_invitation_desc') }}
+                <template v-if="invitationData.is_new_user">
+                  Állítsd be a jelszavadat a belépéshez.
+                </template>
+                <template v-else>
+                  Erősítsd meg a meghívó elfogadását a jelenlegi jelszavad megadásával.
+                </template>
               </p>
             </div>
 
@@ -142,23 +152,39 @@ async function handleAccept() {
                   <span class="font-medium text-gray-900 dark:text-white">{{ invitationData.email }}</span>
                 </div>
                 <div class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">Szervezet:</span>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ invitationData.organization }}</span>
+                </div>
+                <div class="flex justify-between">
                   <span class="text-gray-500 dark:text-gray-400">{{ t('common.role') }}:</span>
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300">{{ invitationData.role }}</span>
                 </div>
               </div>
             </div>
 
+            <!-- Létező userhez tartozó info -->
+            <div v-if="!invitationData.is_new_user" class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p class="text-xs text-blue-800 dark:text-blue-300">
+                ℹ Már van fiókod a Previse-ben. Add meg a <strong>jelenlegi</strong> jelszavad a meghívó elfogadásához. Nem lesz új jelszó létrehozva.
+              </p>
+            </div>
+
             <form @submit.prevent="handleAccept" class="space-y-5">
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('auth.set_password') }}</label>
-                <input v-model="password" type="password" required :placeholder="t('auth.password_hint')"
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  {{ invitationData.is_new_user ? t('auth.set_password') : 'Jelenlegi jelszó' }}
+                </label>
+                <input v-model="password" type="password" required
+                  :placeholder="invitationData.is_new_user ? t('auth.password_hint') : 'Jelenlegi jelszó'"
                   class="block w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-sm" />
-                <!-- Jelszó erősség indikátor -->
-                <div class="mt-3">
+                <!-- Jelszó erősség indikátor CSAK új usernél -->
+                <div v-if="invitationData.is_new_user" class="mt-3">
                   <PasswordStrengthIndicator :password="password" />
                 </div>
               </div>
-              <div>
+
+              <!-- Megerősítés mezőt csak új usernél kérjük -->
+              <div v-if="invitationData.is_new_user">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('auth.confirm_password') }}</label>
                 <input v-model="passwordConfirmation" type="password" required :placeholder="t('auth.confirm_password')"
                   class="block w-full px-4 py-2.5 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-sm"
@@ -174,7 +200,7 @@ async function handleAccept() {
 
               <button type="submit" :disabled="loading"
                 class="w-full py-2.5 px-4 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium rounded-lg shadow-sm hover:shadow-md focus:ring-4 focus:ring-green-300 dark:focus:ring-green-800 transition-all duration-200 text-sm">
-                {{ loading ? t('common.loading') : t('auth.activate_account') }}
+                {{ loading ? t('common.loading') : (invitationData.is_new_user ? t('auth.activate_account') : 'Meghívó elfogadása') }}
               </button>
             </form>
           </template>

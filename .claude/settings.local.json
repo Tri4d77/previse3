@@ -56,7 +56,8 @@
       "Bash(powershell.exe -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
       "Bash(curl -s http://localhost:5173/src/assets/main.css)",
       "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H 'Content-Type: application/json' -H 'Accept: application/json' -d '{\"email\":\"admin@xykarbantarto.hu\",\"password\":\"Admin123!\",\"device_name\":\"Test\"}')",
-      "Bash(curl -s -X POST http://localhost:5173/api/v1/auth/login -H 'Content-Type: application/json' -H 'Accept: application/json' -d '{\"email\":\"admin@xykarbantarto.hu\",\"password\":\"Admin123!\",\"device_name\":\"Test\"}')"
+      "Bash(curl -s -X POST http://localhost:5173/api/v1/auth/login -H 'Content-Type: application/json' -H 'Accept: application/json' -d '{\"email\":\"admin@xykarbantarto.hu\",\"password\":\"Admin123!\",\"device_name\":\"Test\"}')",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/switch-organization -H 'Authorization: Bearer 14|SpHQ0UqusHP6RSJ2Xu2KU351i80jLxDaHSI6fuS08e796f48' -H 'Content-Type: application/json' -H 'Accept: application/json' -d '{\"membership_id\": 2}')"
     ]
   }
 }

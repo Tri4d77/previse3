@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\OrganizationController;
+use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -55,4 +57,19 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     // --- Szervezetek ---
     Route::get('/organizations', [OrganizationController::class, 'index'])->name('organizations.index');
     Route::get('/admin/organizations-tree', [OrganizationController::class, 'tree'])->name('organizations.tree');
+
+    // --- Szerepk\u00f6r\u00f6k ---
+    Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+
+    // --- Tags\u00e1gok (membership) ---
+    Route::get('/memberships', [MembershipController::class, 'index'])->name('memberships.index');
+    Route::post('/memberships/check-email', [MembershipController::class, 'checkEmail'])->name('memberships.check-email');
+    Route::post('/memberships', [MembershipController::class, 'store'])->name('memberships.store');
+    Route::put('/memberships/{membership}', [MembershipController::class, 'update'])->name('memberships.update');
+    Route::patch('/memberships/{membership}/toggle-active', [MembershipController::class, 'toggleActive'])->name('memberships.toggle-active');
+    Route::post('/memberships/{membership}/resend-invitation', [MembershipController::class, 'resendInvitation'])->name('memberships.resend-invitation');
+    Route::delete('/memberships/{membership}', [MembershipController::class, 'destroy'])->name('memberships.destroy');
+    Route::post('/memberships/{membershipId}/restore', [MembershipController::class, 'restore'])
+        ->whereNumber('membershipId')
+        ->name('memberships.restore');
 });
