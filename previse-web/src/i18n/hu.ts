@@ -117,6 +117,18 @@ export default {
     deactivated: 'A felhasználó deaktiválva.',
     deleted: 'A felhasználó törölve.',
     invited_success: 'A meghívó sikeresen elküldve.',
+
+    // M11 - actions menu
+    change_role: 'Szerepkör módosítása',
+    new_role: 'Új szerepkör',
+    role_updated: 'Szerepkör frissítve.',
+    resend_invitation: 'Meghívó újraküldése',
+    invitation_resent: 'Meghívó újraküldve.',
+    delete: 'Eltávolítás',
+    confirm_delete: 'Biztosan eltávolítod a tagok közül: {name}?',
+    restore: 'Visszaállítás',
+    restored: 'Tagság visszaállítva.',
+    self_notice: 'Ez te magad vagy.',
   },
   roles: {
     title: 'Szerepkörök',

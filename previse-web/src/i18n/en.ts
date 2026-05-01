@@ -117,6 +117,18 @@ export default {
     deactivated: 'User has been deactivated.',
     deleted: 'User has been deleted.',
     invited_success: 'Invitation sent successfully.',
+
+    // M11 - actions menu
+    change_role: 'Change role',
+    new_role: 'New role',
+    role_updated: 'Role updated.',
+    resend_invitation: 'Resend invitation',
+    invitation_resent: 'Invitation resent.',
+    delete: 'Remove',
+    confirm_delete: 'Are you sure you want to remove {name} from the members?',
+    restore: 'Restore',
+    restored: 'Membership restored.',
+    self_notice: 'This is you.',
   },
   roles: {
     title: 'Roles',

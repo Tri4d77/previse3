@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/auth'
 import type { PaginatedResponse } from '@/types'
 import InviteUserModal from '@/components/common/InviteUserModal.vue'
 import InvitationSuccessModal from '@/components/common/InvitationSuccessModal.vue'
+import MembershipActionsMenu from '@/components/admin/MembershipActionsMenu.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -107,6 +108,16 @@ function clearFilters() {
 function onInviteSuccess(data: { invitationUrl: string; userName: string; userEmail: string; isExistingUser: boolean }) {
   showInviteModal.value = false
   invitationSuccess.value = data
+  loadMemberships()
+}
+
+function onActionInvitationUrl(m: MembershipItem, url: string, isResend: boolean) {
+  invitationSuccess.value = {
+    invitationUrl: url,
+    userName: m.user.name,
+    userEmail: m.user.email,
+    isExistingUser: !isResend, // restore esetén már létező user
+  }
   loadMemberships()
 }
 
@@ -339,17 +350,16 @@ onMounted(() => {
                 {{ m.joined_at ? formatDate(m.joined_at) : '-' }}
               </td>
 
-              <!-- Műveletek (M3-ban készül) -->
+              <!-- Műveletek -->
               <td class="px-4 py-3 text-right">
-                <button
-                  class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                  title="Műveletek (M3-ban készül)"
-                  disabled
-                >
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
-                  </svg>
-                </button>
+                <MembershipActionsMenu
+                  :membership="m"
+                  :roles="roles"
+                  @updated="loadMemberships"
+                  @deleted="loadMemberships"
+                  @resent="(url) => onActionInvitationUrl(m, url, true)"
+                  @restored="(url) => onActionInvitationUrl(m, url, false)"
+                />
               </td>
             </tr>
           </tbody>
