@@ -69,7 +69,7 @@ class PermissionSeeder extends Seeder
                 'download' => 'Dokumentum letöltése',
                 'manage_folders' => 'Mappák kezelése',
             ],
-            // Helyszínek
+            // Helyszínek (ML1-ML3)
             'locations' => [
                 'read' => 'Helyszínek megtekintése',
                 'create' => 'Helyszín létrehozása',
@@ -77,6 +77,13 @@ class PermissionSeeder extends Seeder
                 'delete' => 'Helyszín törlése',
                 'manage_floors' => 'Szintek kezelése',
                 'manage_rooms' => 'Helyiségek kezelése',
+                'manage_contacts' => 'Kontaktok kezelése',
+                'manage_responsibles' => 'Felelősök kezelése',
+                'manage_tags' => 'Címke-katalógus kezelése',
+                'manage_types' => 'Típus-katalógus kezelése',
+                'manage_floor_plans' => 'Alaprajzok kezelése',
+                'import' => 'Helyszínek importálása',
+                'export' => 'Helyszínek exportálása',
             ],
             // Eszközök
             'assets' => [

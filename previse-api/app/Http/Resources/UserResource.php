@@ -39,6 +39,7 @@ class UserResource extends JsonResource
                     'locale' => $this->settings->locale,
                     'timezone' => $this->settings->timezone,
                     'items_per_page' => $this->settings->items_per_page,
+                    'locations_view' => $this->settings->locations_view,
                     'default_organization_id' => $this->settings->default_organization_id,
                     'lockscreen_timeout_minutes' => $this->settings->lockscreen_timeout_minutes,
                     'notification_email' => $this->settings->notification_email,

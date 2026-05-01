@@ -136,6 +136,22 @@ class Organization extends Model
         return $this->hasMany(AllowedDomain::class);
     }
 
+    /**
+     * Helyszínek (a szervezet által üzemeltetett épületek).
+     */
+    public function locations(): HasMany
+    {
+        return $this->hasMany(Location::class);
+    }
+
+    /**
+     * Helyszín-típus katalógus (org-specifikus).
+     */
+    public function locationTypes(): HasMany
+    {
+        return $this->hasMany(LocationType::class);
+    }
+
     // ========== SEGÉD METÓDUSOK ==========
 
     public function isPlatform(): bool

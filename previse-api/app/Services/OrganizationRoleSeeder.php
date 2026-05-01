@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\LocationType;
 use App\Models\Organization;
 use App\Models\Permission;
 use App\Models\Role;
@@ -29,6 +30,32 @@ class OrganizationRoleSeeder
         }
 
         self::createSubscriberRoles($org, $allPermissions);
+        self::seedDefaultLocationTypes($org);
+    }
+
+    /**
+     * Alap helyszín-típusok minden új subscriber/client szervezethez.
+     * A felhasználó később törölheti vagy módosíthatja a Helyszín-beállítások felületen.
+     */
+    private static function seedDefaultLocationTypes(Organization $org): void
+    {
+        $defaults = [
+            'Iroda',
+            'Bevásárlóközpont',
+            'Lakóház',
+            'Ipari',
+            'Oktatási',
+            'Egészségügyi',
+            'Raktár',
+            'Egyéb',
+        ];
+
+        foreach ($defaults as $i => $name) {
+            LocationType::firstOrCreate(
+                ['organization_id' => $org->id, 'name' => $name],
+                ['sort_order' => $i],
+            );
+        }
     }
 
     private static function createPlatformRoles(Organization $org, $allPermissions): void
@@ -71,6 +98,9 @@ class OrganizationRoleSeeder
             'settings.manage_organization', 'settings.manage_sla',
             'tickets.delete', 'tasks.delete', 'projects.delete', 'issues.delete',
             'contracts.delete', 'contracts.manage_contractors',
+            // Locations: csak az admin kezelhet katalógus-szintű dolgokat
+            'locations.delete', 'locations.manage_tags', 'locations.manage_types',
+            'locations.import',
         ];
         $dispatcher->permissions()->sync(
             $allPermissions->filter(

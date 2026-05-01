@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\LocationsController;
+use App\Http\Controllers\Api\LocationTypesController;
 use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\ProfileController;
@@ -154,4 +156,23 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/memberships/{membershipId}/restore', [MembershipController::class, 'restore'])
         ->whereNumber('membershipId')
         ->name('memberships.restore');
+
+    // --- Helyszínek (ML1) ---
+    Route::get('/locations', [LocationsController::class, 'index'])->name('locations.index');
+    Route::post('/locations', [LocationsController::class, 'store'])->name('locations.store');
+    Route::get('/locations/{location}', [LocationsController::class, 'show'])->name('locations.show');
+    Route::put('/locations/{location}', [LocationsController::class, 'update'])->name('locations.update');
+    Route::delete('/locations/{location}', [LocationsController::class, 'destroy'])->name('locations.destroy');
+    Route::post('/locations/{locationId}/restore', [LocationsController::class, 'restore'])
+        ->whereNumber('locationId')
+        ->name('locations.restore');
+    Route::post('/locations/{location}/status', [LocationsController::class, 'setStatus'])->name('locations.set-status');
+    Route::post('/locations/{location}/image', [LocationsController::class, 'uploadImage'])->name('locations.upload-image');
+    Route::delete('/locations/{location}/image', [LocationsController::class, 'deleteImage'])->name('locations.delete-image');
+
+    // --- Helyszín-típusok (ML1) ---
+    Route::get('/location-types', [LocationTypesController::class, 'index'])->name('location-types.index');
+    Route::post('/location-types', [LocationTypesController::class, 'store'])->name('location-types.store');
+    Route::put('/location-types/{locationType}', [LocationTypesController::class, 'update'])->name('location-types.update');
+    Route::delete('/location-types/{locationType}', [LocationTypesController::class, 'destroy'])->name('location-types.destroy');
 });

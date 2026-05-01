@@ -28,6 +28,7 @@ export interface UserSettings {
   locale: string
   timezone: string
   items_per_page: number
+  locations_view: 'list' | 'cards'
   default_organization_id: number | null
   lockscreen_timeout_minutes: number
   notification_email: boolean

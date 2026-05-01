@@ -316,4 +316,84 @@ export default {
     coming_soon: 'hamarosan',
     placeholder_section: 'Ez a szekció egy későbbi fázisban készül el.',
   },
+
+  locations: {
+    title: 'Helyszínek',
+    breadcrumb: 'Helyszínek',
+    new: 'Új helyszín',
+    edit: 'Helyszín szerkesztése',
+
+    // Lista nézet váltó
+    view_list: 'Lista nézet',
+    view_cards: 'Kártya nézet',
+
+    // Oszlopok / mezők
+    code: 'Kód',
+    code_hint: 'Egyedi azonosító. Ha üresen hagyod, automatikusan generálunk (LOC-001, LOC-002…).',
+    name: 'Név',
+    type: 'Típus',
+    address: 'Cím',
+    city: 'Város',
+    zip_code: 'Irányítószám',
+    latitude: 'Szélesség (lat)',
+    longitude: 'Hosszúság (lon)',
+    description: 'Leírás',
+    image: 'Épület-fotó',
+    image_hint: 'JPEG vagy PNG, max 5 MB. A kártya nézet és a részletoldal fejlécében jelenik meg.',
+    image_upload: 'Kép feltöltése',
+    image_change: 'Kép cseréje',
+    image_remove: 'Kép eltávolítása',
+
+    // Státuszok
+    status: 'Státusz',
+    status_active: 'Aktív',
+    status_archived: 'Archív',
+    status_terminated: 'Megszűnt',
+
+    // Szűrők
+    search_placeholder: 'Keresés név, kód, város…',
+    filter_type: 'Típus szerint',
+    filter_status: 'Státusz szerint',
+    filter_all_types: 'Összes típus',
+    filter_all_statuses: 'Minden státusz',
+    show_only_active: 'Csak aktív helyszínek',
+    show_archived: 'Archív megjelenítése',
+    show_terminated: 'Megszűnt megjelenítése',
+    show_deleted: 'Törölt megjelenítése',
+    clear_filters: 'Szűrők törlése',
+
+    // Üres állapot
+    empty_title: 'Még nincs egy helyszíned sem',
+    empty_subtitle: 'Hozz létre egy új helyszínt, vagy importálj táblázatból.',
+
+    // Műveletek
+    action_edit: 'Szerkesztés',
+    action_archive: 'Archiválás',
+    action_unarchive: 'Visszaállítás aktívra',
+    action_terminate: 'Megszüntetés',
+    action_delete: 'Törlés',
+    action_restore: 'Visszaállítás',
+
+    // Megerősítések / üzenetek
+    confirm_delete: 'Biztosan törlöd a(z) "{name}" helyszínt?',
+    created: 'Helyszín létrehozva.',
+    updated: 'Helyszín frissítve.',
+    deleted: 'Helyszín törölve.',
+    restored: 'Helyszín visszaállítva.',
+    image_uploaded: 'Kép feltöltve.',
+    image_removed: 'Kép eltávolítva.',
+
+    // Validációs hibák
+    code_required: 'A kód megadása kötelező, ha kitöltöd.',
+    name_required: 'A név megadása kötelező.',
+
+    // Stat összefoglaló
+    stat_total: 'Összes',
+    stat_active: 'Aktív',
+    stat_archived: 'Archív',
+
+    // Típus-katalógus
+    types_section: 'Helyszín-típusok',
+    types_section_desc: 'Az itt felvett típusokat választhatod a helyszín létrehozásakor.',
+  },
 }

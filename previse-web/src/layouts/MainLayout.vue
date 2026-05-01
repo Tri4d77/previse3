@@ -185,21 +185,36 @@
           <span v-show="isSidebarExpanded" class="truncate">{{ t(item.label) }}</span>
         </a>
 
-        <!-- Épület (disabled) -->
+        <!-- Épület -->
         <p v-show="isSidebarExpanded && showSection(facilityItems)" class="px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
           {{ t('nav.facility') }}
         </p>
-        <a
-          v-for="item in filteredItems(facilityItems)"
-          :key="item.route"
-          href="#"
-          @click.prevent=""
-          class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-500 cursor-not-allowed opacity-60"
-          :title="sidebarCollapsed && !sidebarHover ? t(item.label) + ' (hamarosan)' : 'Hamarosan (későbbi fázis)'"
-        >
-          <span v-html="item.icon" class="shrink-0 text-slate-500" />
-          <span v-show="isSidebarExpanded" class="truncate">{{ t(item.label) }}</span>
-        </a>
+        <template v-for="item in filteredItems(facilityItems)" :key="item.route">
+          <!-- Élesített: locations -->
+          <router-link
+            v-if="item.available"
+            :to="{ name: item.route }"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            :class="$route.name === item.route
+              ? 'bg-teal-600/20 text-teal-300'
+              : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'"
+            :title="sidebarCollapsed && !sidebarHover ? t(item.label) : ''"
+          >
+            <span v-html="item.icon" class="shrink-0" />
+            <span v-show="isSidebarExpanded" class="truncate">{{ t(item.label) }}</span>
+          </router-link>
+          <!-- Még nem készült el: disabled placeholder -->
+          <a
+            v-else
+            href="#"
+            @click.prevent=""
+            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-500 cursor-not-allowed opacity-60"
+            :title="sidebarCollapsed && !sidebarHover ? t(item.label) + ' (' + t('profile.coming_soon') + ')' : t('profile.placeholder_section')"
+          >
+            <span v-html="item.icon" class="shrink-0 text-slate-500" />
+            <span v-show="isSidebarExpanded" class="truncate">{{ t(item.label) }}</span>
+          </a>
+        </template>
 
         <!-- Kiegészítő (disabled) -->
         <p v-show="isSidebarExpanded && showSection(extraItems)" class="px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -686,6 +701,7 @@ interface NavItem {
   label: string
   icon: string
   permission?: string
+  available?: boolean   // ha true, élesített router-link; ha hiányzik vagy false → disabled placeholder
 }
 
 // Menü elemek
@@ -703,7 +719,7 @@ const businessItems: NavItem[] = [
 ]
 
 const facilityItems: NavItem[] = [
-  { route: 'locations', label: 'nav.locations', icon: svgIcon('locations') },
+  { route: 'locations', label: 'nav.locations', icon: svgIcon('locations'), available: true },
   { route: 'assets', label: 'nav.assets', icon: svgIcon('assets') },
   { route: 'maintenance', label: 'nav.maintenance', icon: svgIcon('maintenance') },
 ]

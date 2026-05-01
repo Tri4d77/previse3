@@ -80,6 +80,13 @@ const router = createRouter({
           component: () => import('@/pages/admin/OrganizationsPage.vue'),
           meta: { requiresCanManageOrganizations: true },
         },
+        // Helyszínek (ML1)
+        {
+          path: 'locations',
+          name: 'locations',
+          component: () => import('@/pages/locations/LocationsPage.vue'),
+          meta: { permission: 'locations.read' },
+        },
         // Profil
         {
           path: 'profile',
