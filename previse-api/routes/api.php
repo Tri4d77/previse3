@@ -14,13 +14,52 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// Health check (publikus)
+// Health check (publikus) - alap státusz
 Route::get('/v1/health', function () {
     return response()->json([
         'status' => 'ok',
         'app' => config('app.name'),
         'version' => '2.0.0',
         'timestamp' => now()->toIso8601String(),
+    ]);
+});
+
+// Részletes health check (deployment ellenőrzéshez)
+// Visszaadja: DB elérés, mail driver, queue driver, scheduler legutóbbi futás
+Route::get('/v1/health/details', function () {
+    $checks = [
+        'app' => [
+            'name' => config('app.name'),
+            'env' => config('app.env'),
+            'debug' => config('app.debug'),
+            'version' => '2.0.0',
+            'locale' => config('app.locale'),
+            'url' => config('app.url'),
+        ],
+        'database' => ['status' => 'unknown', 'driver' => config('database.default')],
+        'mail' => [
+            'mailer' => config('mail.default'),
+            'host' => config('mail.mailers.smtp.host'),
+            'from' => config('mail.from.address'),
+        ],
+        'queue' => ['driver' => config('queue.default')],
+        'cache' => ['driver' => config('cache.default')],
+        'session' => ['driver' => config('session.driver')],
+    ];
+
+    try {
+        \Illuminate\Support\Facades\DB::connection()->getPdo();
+        $checks['database']['status'] = 'connected';
+        $checks['database']['name'] = \Illuminate\Support\Facades\DB::connection()->getDatabaseName();
+    } catch (\Throwable $e) {
+        $checks['database']['status'] = 'error';
+        $checks['database']['error'] = config('app.debug') ? $e->getMessage() : 'Connection failed';
+    }
+
+    return response()->json([
+        'status' => $checks['database']['status'] === 'connected' ? 'ok' : 'degraded',
+        'timestamp' => now()->toIso8601String(),
+        'checks' => $checks,
     ]);
 });
 

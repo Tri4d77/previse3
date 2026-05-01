@@ -125,68 +125,33 @@ $kernel->terminate($request, $response);
 
 ## 4. Környezeti konfiguráció (.env)
 
+> A teljes, kommentelt sablon: [`previse-api/.env.production.example`](../previse-api/.env.production.example).
+> Másold át a szerveren `.env`-be, és töltsd ki a sárga jelölésű mezőket (DB, MAIL, APP_URL, SESSION_DOMAIN, APP_KEY).
+
+A legfontosabb különbségek a fejlesztői .env-hez képest:
+
+| Kulcs | Dev érték | Éles érték |
+|-------|-----------|------------|
+| APP_ENV | local | production |
+| APP_DEBUG | true | **false** |
+| APP_URL | http://localhost:8000 | https://example.hu |
+| FRONTEND_URL | http://localhost:5173 | https://example.hu |
+| DB_HOST | mysql (Docker) | 127.0.0.1 (CPanel localhost) |
+| MAIL_MAILER | smtp (mailpit) | smtp (éles SMTP) |
+| MAIL_HOST | mailpit | smtp.provider.hu |
+| SESSION_DRIVER | file | database |
+| SESSION_ENCRYPT | false | **true** |
+| SESSION_DOMAIN | (üres) | .example.hu |
+| SESSION_SECURE_COOKIE | (üres) | **true** |
+| LOG_LEVEL | debug | warning |
+| LOG_CHANNEL | stack | daily |
+
+**Auth modul M3-M11 fázisok új beállításai:**
 ```env
-# Alkalmazás
-APP_NAME=Previse
-APP_ENV=production
-APP_KEY=base64:...
-APP_DEBUG=false
-APP_URL=https://app.previse.hu
-APP_TIMEZONE=Europe/Budapest
-APP_LOCALE=hu
-
-# Adatbázis
-DB_CONNECTION=mysql
-DB_HOST=localhost
-DB_PORT=3306
-DB_DATABASE=previse_db
-DB_USERNAME=previse_user
-DB_PASSWORD=secure_password
-DB_CHARSET=utf8mb4
-DB_COLLATION=utf8mb4_unicode_ci
-
-# Cache (file-based, Redis helyett)
-CACHE_DRIVER=file
-CACHE_PREFIX=previse
-
-# Session
-SESSION_DRIVER=file
-SESSION_LIFETIME=120
-SESSION_ENCRYPT=true
-
-# Queue (database driver, Redis helyett)
-QUEUE_CONNECTION=database
-
-# Mail (SMTP)
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.provider.hu
-MAIL_PORT=587
-MAIL_USERNAME=noreply@previse.hu
-MAIL_PASSWORD=mail_password
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=noreply@previse.hu
-MAIL_FROM_NAME="Previse"
-
-# Sanctum
-SANCTUM_STATEFUL_DOMAINS=app.previse.hu
-SESSION_DOMAIN=.previse.hu
-CORS_ALLOWED_ORIGINS=https://app.previse.hu
-
-# Firebase (Push értesítések)
-FIREBASE_CREDENTIALS=/home/username/previse-api/storage/app/firebase-credentials.json
-FIREBASE_PROJECT_ID=previse-app
-
-# Fájl feltöltés
-FILESYSTEM_DISK=local
-UPLOAD_MAX_SIZE=67108864
-
-# Logging
-LOG_CHANNEL=daily
-LOG_LEVEL=error
-LOG_DAYS=30
-
-# Egyéb
-BROADCAST_DRIVER=log
+AUTH_INVITATION_EXPIRES_DAYS=7         # meghívó érvényesség (M3)
+AUTH_EMAIL_CHANGE_EXPIRES_MINUTES=60   # email-változtatás token (M6)
+AUTH_ACCOUNT_DELETION_GRACE_DAYS=30    # fiók-törlés grace (M7)
+AUTH_EVENTS_RETENTION_DAYS=90          # auth napló retention (M8)
 ```
 
 ## 5. Cron beállítások
@@ -211,15 +176,40 @@ Ez minden percben elindítja a queue worker-t, ami feldolgozza a sorban álló j
 
 ### 5.3 Ütemezett feladatok (Laravel Scheduler-ben)
 
+A scheduler definíciók a `previse-api/routes/console.php` fájlban vannak.
+
+**Auth modul (M7-M8) — már implementálva:**
+
+| Feladat | Parancs | Időzítés | Leírás |
+|---------|---------|----------|--------|
+| Fiók anonimizálás | `users:finalize-deletions` | Naponta 03:00 | Lejárt 30 napos grace-ű user fiókok anonimizálása (név megmarad, minden más reset) |
+| Auth napló pruning | `auth:prune-events` | Naponta 03:30 | 90 napnál régebbi auth események törlése |
+| Queue worker | `queue:work --stop-when-empty --max-time=50` | Percenként | Email queue feldolgozás (Supervisor helyett) |
+
+**Üzleti modulok (M12+ jövőbeli):**
+
 | Feladat | Időzítés | Leírás |
 |---------|----------|--------|
 | SLA ellenőrzés | 5 percenként | SLA határidők ellenőrzése, figyelmeztetések |
 | Karbantartás generálás | Naponta 01:00 | Esedékes karbantartási feladatok létrehozása |
 | Ismétlődő feladatok | Naponta 01:30 | Ismétlődő feladat-példányok generálása |
 | Szerződés lejárat | Naponta 07:00 | Lejáró szerződések figyelmeztetése |
-| Cache tisztítás | Hetente | Régi cache fájlok törlése |
-| Log rotáció | Naponta | 30 napnál régebbi logok törlése |
 | Activity log archiválás | Havonta | 365 napnál régebbi bejegyzések archiválása |
+
+### 5.4 Manuális futtatás
+
+Szükség esetén bármelyik scheduled feladat futtatható kézzel:
+
+```bash
+# Lejárt grace-ű fiókok anonimizálása (preview módban)
+php artisan users:finalize-deletions --dry-run
+
+# Tényleges futtatás
+php artisan users:finalize-deletions
+
+# Auth napló törlés egyedi retention-nel
+php artisan auth:prune-events --days=180
+```
 
 ## 6. Deployment folyamat
 
@@ -371,9 +361,68 @@ tar -xzf /home/username/backups/uploads_20240315.tar.gz -C /
 ### 9.3 Uptime monitoring
 
 - Külső szolgáltatás ajánlott (UptimeRobot, Pingdom)
-- Health check endpoint: `GET /api/v1/health` → 200 OK
+- Health check endpointok:
+  - `GET /api/v1/health` → 200 OK alap státusszal (publikus, gyors)
+  - `GET /api/v1/health/details` → részletes JSON: DB connection, mail/queue/cache/session driver, app env (publikus, de ne tegye közzé érzékeny adatot — csak driver neveket)
 
-## 10. Skálázás (jövőbeli)
+## 10. Auth modul (M3–M11) telepítési ellenőrzőlista
+
+Az auth-réteg élesítéskor ezeket nézd át:
+
+### 10.1 Email küldés (M3, M4, M5, M6, M7)
+- [ ] `MAIL_MAILER=smtp` beállítva, host/port/credentials kitöltve
+- [ ] `MAIL_FROM_ADDRESS` ugyanazon domain alól, mint az `APP_URL`
+- [ ] **Tesztküldés**: `php artisan tinker` → `Mail::raw('test', fn($m) => $m->to('te@email.hu')->subject('Test'));`
+- [ ] **Queue worker fut**: scheduler `queue:work` percenként, vagy supervisord-zett worker
+- [ ] SPF / DKIM / DMARC DNS rekordok beállítva a `MAIL_FROM_ADDRESS` domainjéhez
+- [ ] HU + EN email-sablonok mindkét locale-ban renderelnek (Mailable `->locale()` támogatott)
+
+### 10.2 Frontend (M9 lokalizáció + cookie)
+- [ ] `SANCTUM_STATEFUL_DOMAINS` a frontend domain-jét tartalmazza
+- [ ] `SESSION_DOMAIN` vezető ponttal (pl. `.example.hu`), ha aldomainen is megy az SPA
+- [ ] `SESSION_SECURE_COOKIE=true`, `SESSION_ENCRYPT=true`, HTTPS aktív
+- [ ] Vue build: `npm run build` → `dist/` feltöltve a `previse-web/dist/` mappába
+- [ ] Frontend `vite.config.ts` `base` opció átállítva, ha alkönyvtárból megy (pl. `/app/`)
+
+### 10.3 Auth időzítések
+- [ ] `AUTH_INVITATION_EXPIRES_DAYS=7` (alap)
+- [ ] `AUTH_EMAIL_CHANGE_EXPIRES_MINUTES=60`
+- [ ] `AUTH_ACCOUNT_DELETION_GRACE_DAYS=30`
+- [ ] `AUTH_EVENTS_RETENTION_DAYS=90`
+
+### 10.4 Scheduler (M7, M8)
+- [ ] CPanel cron beállítva: `* * * * * cd /home/.../previse-api && php artisan schedule:run >/dev/null 2>&1`
+- [ ] **Verifikáció**: `php artisan schedule:list` mutatja a 3 feladatot (`users:finalize-deletions` 03:00, `auth:prune-events` 03:30, `queue:work` percenként)
+- [ ] Próba: `php artisan users:finalize-deletions --dry-run` 0 rekordot listáz friss telepítésen
+- [ ] Próba: `php artisan auth:prune-events --dry-run` 0 rekordot listáz
+
+### 10.5 Bevezető user-hozzáférés
+- [ ] Migráció + seed lefuttatva (`php artisan migrate --seed`)
+- [ ] Kapsz default super-admin login-t: `admin@previse.hu` / `Admin123!`
+- [ ] **AZONNALI MŰVELET**: jelentkezz be, vidd a Profil → Biztonság fülre, módosítsd a jelszót
+- [ ] Engedélyezd a 2FA-t a super-admin fiókon
+- [ ] Mentsd el a recovery kódokat biztonságos helyre
+
+### 10.6 Production-only optimization
+Telepítés végén:
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan event:cache
+```
+
+(Fejlesztőkörnyezetben NE használd, mert akkor minden config/route módosítás után újra kell futtatni.)
+
+Bármi config/.env változtatás után:
+```bash
+php artisan optimize:clear
+php artisan config:cache
+```
+
+---
+
+## 11. Skálázás (jövőbeli)
 
 Ha a shared hosting korlátai elérkeznek:
 

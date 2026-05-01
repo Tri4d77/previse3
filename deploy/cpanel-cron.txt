@@ -1,0 +1,29 @@
+# CPanel Cron Jobs beállítások
+#
+# Másold be a CPanel → Cron Jobs felületre (vagy a crontab-ba).
+# A "/home/USERNAME" részt cseréld a saját CPanel felhasználódra.
+
+# ----- Laravel scheduler (KÖTELEZŐ) -----
+# Ezt percenként kell futtatni — a Laravel maga dönti el, mit futtasson épp.
+# Ez egyetlen cron, amely a routes/console.php szerinti összes scheduled
+# feladatot kezeli (users:finalize-deletions, auth:prune-events, queue:work).
+
+* * * * * cd /home/USERNAME/previse-api && /usr/bin/php artisan schedule:run >> /dev/null 2>&1
+
+
+# ----- Opcionális: dedikált queue worker (alternatíva) -----
+# Ha a scheduler queue:work nem elég reszponzív (1 perces késleltetés),
+# vagy gyakori email-küldés van, akkor a következővel folyamatos:
+# (Csak akkor használd ezt, ha kikommenteled a scheduler-beli queue:work-öt!)
+
+# */1 * * * * cd /home/USERNAME/previse-api && /usr/bin/php artisan queue:work --stop-when-empty --max-time=55 >> /dev/null 2>&1
+
+
+# ----- Kézi beavatkozás esetén -----
+# Lejárt fiókok azonnali anonimizálása:
+#   php artisan users:finalize-deletions
+# Auth napló pruning egyedi retention-nel:
+#   php artisan auth:prune-events --days=180
+# Cron tesztelés (mit futtatna most):
+#   php artisan schedule:list
+#   php artisan schedule:test
