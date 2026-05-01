@@ -25,7 +25,7 @@ const tabs: { key: TabKey; label: string; available: boolean }[] = [
       <ol class="flex items-center space-x-2">
         <li>
           <router-link to="/" class="hover:text-teal-600 dark:hover:text-teal-400">
-            {{ t('nav.home', 'Főoldal') }}
+            {{ t('common.home') }}
           </router-link>
         </li>
         <li><span class="mx-1">/</span></li>
@@ -53,7 +53,7 @@ const tabs: { key: TabKey; label: string; available: boolean }[] = [
           ]"
         >
           {{ t(tab.label) }}
-          <span v-if="!tab.available" class="ml-1 text-[10px] text-gray-400">(hamarosan)</span>
+          <span v-if="!tab.available" class="ml-1 text-[10px] text-gray-400">({{ t('profile.coming_soon') }})</span>
         </button>
       </nav>
     </div>
@@ -61,7 +61,7 @@ const tabs: { key: TabKey; label: string; available: boolean }[] = [
     <!-- Content -->
     <SecurityTab v-if="activeTab === 'security'" />
     <div v-else class="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center text-gray-500">
-      Ez a szekció egy későbbi fázisban készül el.
+      {{ t('profile.placeholder_section') }}
     </div>
   </div>
 </template>

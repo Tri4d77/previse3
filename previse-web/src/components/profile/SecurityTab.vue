@@ -73,7 +73,7 @@ async function submitPassword() {
     if (err.response?.data?.errors) {
       pwErrors.value = err.response.data.errors
     } else {
-      toast.error(err.response?.data?.message ?? 'Hiba történt.')
+      toast.error(err.response?.data?.message ?? t('common.error_generic'))
     }
   } finally {
     pwLoading.value = false
@@ -90,7 +90,7 @@ async function loadSessions() {
   try {
     sessions.value = await fetchSessions()
   } catch (err: any) {
-    toast.error(err.response?.data?.message ?? 'Sessionök betöltése sikertelen.')
+    toast.error(err.response?.data?.message ?? t('profile.sessions_failed_to_load'))
   } finally {
     sessionsLoading.value = false
   }
@@ -106,7 +106,7 @@ async function onRevokeSession(s: SessionItem) {
     await loadSessions()
     toast.success(t('profile.session_revoke'))
   } catch (err: any) {
-    toast.error(err.response?.data?.message ?? 'Sikertelen.')
+    toast.error(err.response?.data?.message ?? t('common.failed'))
   } finally {
     revokingId.value = null
   }
@@ -115,20 +115,22 @@ async function onRevokeSession(s: SessionItem) {
 async function onRevokeOthers() {
   if (!confirm(t('profile.sessions_revoke_others_confirm'))) return
   try {
-    const { revoked_count } = await revokeOtherSessions()
-    toast.success(t('profile.other_sessions_revoked') ?? `${revoked_count} eszköz kijelentkeztetve.`)
+    await revokeOtherSessions()
+    toast.success(t('profile.sessions_revoke_others'))
     await loadSessions()
   } catch (err: any) {
-    toast.error(err.response?.data?.message ?? 'Sikertelen.')
+    toast.error(err.response?.data?.message ?? t('common.failed'))
   }
 }
 
 const otherSessionsCount = computed(() => sessions.value.filter((s) => !s.is_current).length)
 
 // Egyszerű user-agent parser: böngésző + OS kinyerése UI-hoz
+// (A "Böngésző" / "Ismeretlen eszköz" stringek lokalizáltak; OS nevek és böngésző-nevek
+// brand-szerűen univerzálisak, nem fordítjuk őket.)
 function parseUserAgent(ua: string | null): string {
-  if (!ua) return 'Ismeretlen eszköz'
-  let browser = 'Böngésző'
+  if (!ua) return t('common.unknown_device')
+  let browser = t('common.browser')
   if (/Chrome\//.test(ua) && !/Edg\//.test(ua)) browser = 'Chrome'
   else if (/Firefox\//.test(ua)) browser = 'Firefox'
   else if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) browser = 'Safari'
@@ -148,10 +150,10 @@ function formatRelative(iso: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
   const diff = (Date.now() - d.getTime()) / 1000
-  if (diff < 60) return 'pár másodperce'
-  if (diff < 3600) return `${Math.floor(diff / 60)} perce`
-  if (diff < 86400) return `${Math.floor(diff / 3600)} órája`
-  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)} napja`
+  if (diff < 60) return t('common.rel_seconds_ago')
+  if (diff < 3600) return t('common.rel_minutes_ago', { n: Math.floor(diff / 60) })
+  if (diff < 86400) return t('common.rel_hours_ago', { n: Math.floor(diff / 3600) })
+  if (diff < 86400 * 7) return t('common.rel_days_ago', { n: Math.floor(diff / 86400) })
   return d.toLocaleDateString()
 }
 
@@ -173,7 +175,7 @@ async function submitEmailChange() {
       password: emailChangePassword.value,
       new_email: newEmail.value,
     })
-    toast.success('Megerősítő levelet küldtünk az új címre.')
+    toast.success(t('profile.email_change_success'))
     emailChangeOpen.value = false
     newEmail.value = ''
     emailChangePassword.value = ''
@@ -182,7 +184,7 @@ async function submitEmailChange() {
     if (err.response?.data?.errors) {
       emailChangeErrors.value = err.response.data.errors
     } else {
-      toast.error(err.response?.data?.message ?? 'Sikertelen.')
+      toast.error(err.response?.data?.message ?? t('common.failed'))
     }
   } finally {
     emailChangeLoading.value = false
@@ -190,13 +192,13 @@ async function submitEmailChange() {
 }
 
 async function cancelPendingEmailChange() {
-  if (!confirm('Biztosan visszavonod a függőben lévő email-változtatást?')) return
+  if (!confirm(t('profile.email_pending_cancel_confirm'))) return
   try {
     await cancelEmailChange()
-    toast.success('Email-változtatás visszavonva.')
+    toast.success(t('profile.email_change_cancel_success'))
     await authStore.fetchUser()
   } catch (err: any) {
-    toast.error(err.response?.data?.message ?? 'Sikertelen.')
+    toast.error(err.response?.data?.message ?? t('common.failed'))
   }
 }
 
@@ -227,7 +229,7 @@ async function onStart2fa() {
     twoFaConfirmError.value = ''
     twoFaRecoveryCodes.value = null
   } catch (err: any) {
-    toast.error(err.response?.data?.message ?? 'Sikertelen.')
+    toast.error(err.response?.data?.message ?? t('common.failed'))
   }
 }
 
@@ -238,9 +240,9 @@ async function onConfirm2fa() {
     twoFaRecoveryCodes.value = await confirm2fa(twoFaCode.value.trim())
     twoFaSetup.value = null
     await load2faStatus()
-    toast.success('Kétfaktoros hitelesítés bekapcsolva.')
+    toast.success(t('profile.two_factor_enabled_success'))
   } catch (err: any) {
-    twoFaConfirmError.value = err.response?.data?.errors?.code?.[0] ?? 'Érvénytelen kód.'
+    twoFaConfirmError.value = err.response?.data?.errors?.code?.[0] ?? t('profile.two_factor_invalid_code')
   } finally {
     twoFaConfirming.value = false
   }
@@ -254,36 +256,36 @@ async function onDisable2fa() {
     disablingOpen.value = false
     twoFaRecoveryCodes.value = null
     await load2faStatus()
-    toast.success('Kétfaktoros hitelesítés kikapcsolva.')
+    toast.success(t('profile.two_factor_disabled_success'))
   } catch (err: any) {
-    disablingError.value = err.response?.data?.errors?.password?.[0] ?? err.response?.data?.message ?? 'Sikertelen.'
+    disablingError.value = err.response?.data?.errors?.password?.[0] ?? err.response?.data?.message ?? t('common.failed')
   }
 }
 
 async function onRegenRecoveryCodes() {
-  if (!confirm('Új recovery kódok generálása — a régiek érvénytelenné válnak. Folytatod?')) return
+  if (!confirm(t('profile.two_factor_recovery_regenerate_confirm'))) return
   try {
     twoFaRecoveryCodes.value = await regen2faCodes()
-    toast.success('Új recovery kódok generálva.')
+    toast.success(t('profile.two_factor_recovery_regenerate_success'))
   } catch (err: any) {
-    toast.error(err.response?.data?.message ?? 'Sikertelen.')
+    toast.error(err.response?.data?.message ?? t('common.failed'))
   }
 }
 
 function downloadRecoveryCodes() {
   if (!twoFaRecoveryCodes.value) return
   const content = [
-    'Previse – 2FA recovery kódok',
-    `Generálva: ${new Date().toLocaleString()}`,
+    t('profile.two_factor_download_header'),
+    t('profile.two_factor_download_generated', { time: new Date().toLocaleString() }),
     '',
     ...twoFaRecoveryCodes.value,
     '',
-    'Minden kód csak EGYSZER használható. Tárold biztonságos helyen.',
+    t('profile.two_factor_download_footer'),
   ].join('\n')
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
-  link.download = 'previse-recovery-codes.txt'
+  link.download = t('profile.two_factor_download_filename')
   link.click()
   URL.revokeObjectURL(link.href)
 }
@@ -302,7 +304,7 @@ async function confirmDeleteAccount() {
   deleteAccountLoading.value = true
   try {
     await deleteAccount(deleteAccountPassword.value)
-    toast.success('A fiókod törlésre ütemezve. 30 nap múlva véglegesen törlődik.')
+    toast.success(t('profile.account_deletion_success'))
     // Kijelentkeztetjük (token törlődött a backend-en)
     authStore.clearAuth()
     router.push({ name: 'login' })
@@ -310,7 +312,7 @@ async function confirmDeleteAccount() {
     deleteAccountError.value =
       err.response?.data?.errors?.password?.[0]
       ?? err.response?.data?.message
-      ?? 'Sikertelen.'
+      ?? t('common.failed')
   } finally {
     deleteAccountLoading.value = false
   }
@@ -321,28 +323,24 @@ const memberships = computed(() => authStore.memberships ?? [])
 const leavingMembershipId = ref<number | null>(null)
 
 async function onLeaveMembership(membershipId: number, orgName: string) {
-  if (!confirm(`Biztosan kilépsz a(z) "${orgName}" szervezetből?`)) return
+  if (!confirm(t('profile.memberships_leave_confirm', { name: orgName }))) return
 
   leavingMembershipId.value = membershipId
   try {
     await leaveOrganization(membershipId)
-    toast.success('Kiléptél a szervezetből.')
+    toast.success(t('profile.memberships_leave_success'))
     await authStore.fetchUser()
   } catch (err: any) {
     const code = err.response?.data?.code
     if (code === 'last_active_membership') {
-      if (confirm(
-        'Ez az egyetlen aktív tagságod, így kilépés nem lehetséges.\n\n'
-        + 'Szeretnéd elindítani a fiók-törlést (30 napos grace periód)?'
-      )) {
-        // Lentebb görgetünk a fiók-törlés szekcióhoz
+      if (confirm(t('profile.memberships_last_warning'))) {
         deleteAccountOpen.value = true
         document.querySelector('[data-section="delete-account"]')?.scrollIntoView({ behavior: 'smooth' })
       }
     } else if (code === 'last_super_admin') {
-      toast.error('Te vagy az egyetlen szuper-admin. Előbb nevezz ki új szuper-admint.')
+      toast.error(t('profile.memberships_last_super_admin'))
     } else {
-      toast.error(err.response?.data?.message ?? 'Sikertelen.')
+      toast.error(err.response?.data?.message ?? t('common.failed'))
     }
   } finally {
     leavingMembershipId.value = null
@@ -366,7 +364,7 @@ async function loadLoginHistory(page = 1) {
     historyLastPage.value = res.meta.last_page
     historyTotal.value = res.meta.total
   } catch (err: any) {
-    toast.error(err.response?.data?.message ?? 'Előzmények betöltése sikertelen.')
+    toast.error(err.response?.data?.message ?? t('profile.history_failed_to_load'))
   } finally {
     historyLoading.value = false
   }
@@ -379,32 +377,11 @@ function toggleHistory() {
   }
 }
 
-const eventLabels: Record<string, string> = {
-  login_success: 'Sikeres bejelentkezés',
-  login_failed: 'Sikertelen bejelentkezés',
-  login_throttled: 'Túl sok próbálkozás',
-  logout: 'Kijelentkezés',
-  logout_all: 'Kijelentkezés minden eszközről',
-  organization_switched: 'Szervezet-váltás',
-  organization_entered: 'Belépés szervezetbe (impersonation)',
-  organization_exited: 'Kilépés szervezetből',
-  invitation_accepted: 'Meghívó elfogadva',
-  password_reset_requested: 'Jelszó-visszaállítás kérve',
-  password_reset_completed: 'Jelszó visszaállítva',
-  password_changed: 'Jelszó módosítva',
-  email_change_requested: 'Email-változtatás indítva',
-  email_change_confirmed: 'Email-változtatás megerősítve',
-  email_change_cancelled: 'Email-változtatás visszavonva',
-  two_factor_enabled: '2FA bekapcsolva',
-  two_factor_disabled: '2FA kikapcsolva',
-  two_factor_challenge_failed: '2FA sikertelen kód',
-  two_factor_recovery_used: 'Recovery kód használva',
-  two_factor_recovery_regenerated: 'Új recovery kódok',
-  session_revoked: 'Session kijelentkeztetve',
-  sessions_others_revoked: 'Minden más eszköz kijelentkeztetve',
-  membership_left: 'Szervezetből kilépés',
-  account_deletion_scheduled: 'Fiók-törlés kezdeményezve',
-  account_deletion_cancelled: 'Fiók-törlés visszavonva',
+function eventLabel(event: string): string {
+  // A profile.event_* kulcsokra mappolunk; ha nincs, az eseménynév jelenik meg
+  const key = `profile.event_${event}`
+  const translated = t(key)
+  return translated === key ? event : translated
 }
 
 const dangerEvents = new Set(['login_failed', 'login_throttled', 'two_factor_challenge_failed'])
@@ -424,13 +401,13 @@ function formatDateTime(iso: string): string {
 }
 
 async function doCancelAccountDeletion() {
-  if (!confirm('Biztosan visszavonod a fiók törlését?')) return
+  if (!confirm(t('profile.account_deletion_cancel_confirm'))) return
   try {
     await cancelAccountDeletion()
-    toast.success('Fiók-törlés visszavonva.')
+    toast.success(t('profile.account_deletion_cancel_success'))
     await authStore.fetchUser()
   } catch (err: any) {
-    toast.error(err.response?.data?.message ?? 'Sikertelen.')
+    toast.error(err.response?.data?.message ?? t('common.failed'))
   }
 }
 
@@ -446,28 +423,25 @@ onMounted(() => {
     <!-- Email cím szekció -->
     <section class="bg-white dark:bg-gray-800 rounded-lg shadow">
       <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Email cím</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Az email címedhez fűződik a bejelentkezés és a fiók-értesítések küldése.
-        </p>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('profile.email_section') }}</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('profile.email_section_desc') }}</p>
       </div>
       <div class="p-6 space-y-4">
         <div class="flex items-center gap-3">
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Jelenlegi:</span>
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('profile.email_current') }}</span>
           <code class="font-mono text-sm px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">{{ currentEmail }}</code>
         </div>
 
         <!-- Pending állapot -->
         <div v-if="pendingEmail" class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
           <p class="text-sm text-amber-900 dark:text-amber-200">
-            Függőben: az új cím (<code class="font-mono">{{ pendingEmail }}</code>) megerősítésére várunk.
-            Nézd meg az új címen kapott levelet, és kattints a megerősítő linkre.
+            {{ t('profile.email_pending', { email: pendingEmail }) }}
           </p>
           <button
             @click="cancelPendingEmailChange"
             class="mt-3 text-xs px-3 py-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded border border-red-300 dark:border-red-700"
           >
-            Változtatás visszavonása
+            {{ t('profile.email_pending_cancel') }}
           </button>
         </div>
 
@@ -477,12 +451,12 @@ onMounted(() => {
             @click="emailChangeOpen = true"
             class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
           >
-            Email cím módosítása
+            {{ t('profile.email_change_button') }}
           </button>
 
           <form v-else @submit.prevent="submitEmailChange" class="space-y-3 max-w-md">
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Új email cím</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('profile.email_new_label') }}</label>
               <input
                 v-model="newEmail"
                 type="email"
@@ -492,7 +466,7 @@ onMounted(() => {
               <p v-if="emailChangeErrors.new_email" class="mt-1 text-xs text-red-600">{{ emailChangeErrors.new_email[0] }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jelenlegi jelszó</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('profile.email_current_password') }}</label>
               <input
                 v-model="emailChangePassword"
                 type="password"
@@ -508,14 +482,14 @@ onMounted(() => {
                 :disabled="emailChangeLoading"
                 class="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white text-sm font-medium rounded-lg"
               >
-                {{ emailChangeLoading ? '…' : 'Megerősítő levél küldése' }}
+                {{ emailChangeLoading ? '…' : t('profile.email_submit') }}
               </button>
               <button
                 type="button"
                 @click="emailChangeOpen = false; emailChangeErrors = {}; newEmail = ''; emailChangePassword = ''"
                 class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
               >
-                Mégse
+                {{ t('common.cancel') }}
               </button>
             </div>
           </form>
@@ -526,10 +500,8 @@ onMounted(() => {
     <!-- Tagságaim szekció -->
     <section v-if="memberships.length > 0" class="bg-white dark:bg-gray-800 rounded-lg shadow">
       <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Szervezeti tagságaim</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Ezekhez a szervezetekhez van aktív tagságod. Kiléphetsz bármelyikből, ha már nem dolgozol ott.
-        </p>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('profile.memberships_section') }}</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('profile.memberships_section_desc') }}</p>
       </div>
       <div class="divide-y divide-gray-200 dark:divide-gray-700">
         <div v-for="m in memberships" :key="m.id" class="p-5 flex items-center gap-4">
@@ -551,7 +523,7 @@ onMounted(() => {
             :disabled="leavingMembershipId === m.id"
             class="text-sm px-3 py-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-50"
           >
-            Kilépés
+            {{ t('profile.memberships_leave') }}
           </button>
         </div>
       </div>
@@ -690,22 +662,20 @@ onMounted(() => {
     <section class="bg-white dark:bg-gray-800 rounded-lg shadow">
       <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <div>
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Kétfaktoros hitelesítés (2FA)</h2>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Plusz biztonsági réteg: bejelentkezéskor egy authenticator app által generált 6 jegyű kód kell.
-          </p>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('profile.two_factor_section') }}</h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('profile.two_factor_section_desc') }}</p>
         </div>
         <span
           v-if="twoFaStatus?.enabled"
           class="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium"
         >
-          Aktív
+          {{ t('profile.two_factor_active') }}
         </span>
         <span
           v-else
           class="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium"
         >
-          Kikapcsolva
+          {{ t('profile.two_factor_inactive') }}
         </span>
       </div>
 
@@ -716,25 +686,25 @@ onMounted(() => {
             @click="onStart2fa"
             class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg"
           >
-            2FA bekapcsolása
+            {{ t('profile.two_factor_enable') }}
           </button>
         </div>
 
         <!-- Setup folyamatban → QR + kód megerősítés -->
         <div v-if="twoFaSetup" class="space-y-4">
           <p class="text-sm text-gray-700 dark:text-gray-300">
-            1. Olvasd be a QR kódot egy authenticator appal (Google Authenticator, 1Password, Authy…).
+            {{ t('profile.two_factor_setup_step1') }}
           </p>
 
           <div class="inline-block p-3 bg-white rounded-lg" v-html="twoFaSetup.qr_code_svg"></div>
 
           <p class="text-xs text-gray-500 dark:text-gray-400">
-            Vagy add hozzá kézzel ezt a secret kulcsot:
+            {{ t('profile.two_factor_setup_secret_label') }}
             <code class="font-mono px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">{{ twoFaSetup.secret }}</code>
           </p>
 
           <p class="text-sm text-gray-700 dark:text-gray-300 pt-2">
-            2. Add meg az app által mutatott 6 jegyű kódot:
+            {{ t('profile.two_factor_setup_step2') }}
           </p>
 
           <div class="flex items-start gap-2">
@@ -752,7 +722,7 @@ onMounted(() => {
               :disabled="twoFaConfirming || twoFaCode.length !== 6"
               class="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white text-sm font-medium rounded-lg"
             >
-              Megerősítés
+              {{ t('profile.two_factor_confirm') }}
             </button>
           </div>
 
@@ -761,9 +731,9 @@ onMounted(() => {
 
         <!-- Recovery kódok (frissen generált / újragenerált) -->
         <div v-if="twoFaRecoveryCodes" class="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-          <h3 class="font-medium text-amber-900 dark:text-amber-200 mb-2">Recovery kódok — mentsd el most!</h3>
+          <h3 class="font-medium text-amber-900 dark:text-amber-200 mb-2">{{ t('profile.two_factor_recovery_title') }}</h3>
           <p class="text-xs text-amber-800 dark:text-amber-300 mb-3">
-            Minden kód EGYSZER használható. Ha elveszítenéd az authenticator appot, ezekkel tudsz még belépni.
+            {{ t('profile.two_factor_recovery_warning') }}
           </p>
           <div class="grid grid-cols-2 gap-2 mb-3 font-mono text-sm">
             <code v-for="c in twoFaRecoveryCodes" :key="c" class="px-3 py-1.5 bg-white dark:bg-gray-800 rounded border border-amber-300">{{ c }}</code>
@@ -772,7 +742,7 @@ onMounted(() => {
             @click="downloadRecoveryCodes"
             class="text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded"
           >
-            Letöltés (.txt)
+            {{ t('profile.two_factor_recovery_download') }}
           </button>
         </div>
 
@@ -782,7 +752,7 @@ onMounted(() => {
             @click="onRegenRecoveryCodes"
             class="text-sm px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
           >
-            Új recovery kódok generálása
+            {{ t('profile.two_factor_recovery_regenerate') }}
           </button>
 
           <div>
@@ -791,22 +761,22 @@ onMounted(() => {
               @click="disablingOpen = true"
               class="text-sm px-3 py-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded border border-red-300 dark:border-red-700"
             >
-              2FA kikapcsolása
+              {{ t('profile.two_factor_disable_button') }}
             </button>
 
             <div v-else class="flex items-start gap-2 mt-2">
               <input
                 v-model="disablePassword"
                 type="password"
-                placeholder="Jelenlegi jelszó"
+                :placeholder="t('profile.two_factor_password_placeholder')"
                 class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
                 autocomplete="current-password"
               />
               <button @click="onDisable2fa" class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg">
-                Megerősítés
+                {{ t('profile.two_factor_confirm') }}
               </button>
               <button @click="disablingOpen = false; disablePassword = ''; disablingError = ''" class="px-3 py-2 text-sm text-gray-500">
-                Mégse
+                {{ t('common.cancel') }}
               </button>
             </div>
             <p v-if="disablingError" class="mt-1 text-xs text-red-600">{{ disablingError }}</p>
@@ -822,9 +792,9 @@ onMounted(() => {
         class="w-full p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
       >
         <div>
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Bejelentkezési előzmények</h2>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('profile.history_section') }}</h2>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            A fiókod biztonsági eseményei az elmúlt 90 napban.
+            {{ t('profile.history_section_desc') }}
           </p>
         </div>
         <svg class="w-5 h-5 text-gray-400 transition-transform" :class="historyOpen ? 'rotate-180' : ''"
@@ -837,17 +807,17 @@ onMounted(() => {
         <div v-if="historyLoading" class="text-center text-gray-500 py-4">…</div>
 
         <div v-else-if="historyEvents.length === 0" class="text-center text-gray-500 py-4">
-          Nincsenek megjeleníthető események.
+          {{ t('profile.history_no_events') }}
         </div>
 
         <div v-else class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                <th class="py-2 pr-4 font-medium">Esemény</th>
-                <th class="py-2 pr-4 font-medium">Időpont</th>
-                <th class="py-2 pr-4 font-medium">IP</th>
-                <th class="py-2 font-medium">Eszköz</th>
+                <th class="py-2 pr-4 font-medium">{{ t('profile.history_column_event') }}</th>
+                <th class="py-2 pr-4 font-medium">{{ t('profile.history_column_time') }}</th>
+                <th class="py-2 pr-4 font-medium">{{ t('profile.history_column_ip') }}</th>
+                <th class="py-2 font-medium">{{ t('profile.history_column_device') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -856,7 +826,7 @@ onMounted(() => {
                 <td class="py-2 pr-4">
                   <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
                         :class="eventBadgeClass(e.event)">
-                    {{ eventLabels[e.event] ?? e.event }}
+                    {{ eventLabel(e.event) }}
                   </span>
                 </td>
                 <td class="py-2 pr-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ formatDateTime(e.created_at) }}</td>
@@ -870,19 +840,19 @@ onMounted(() => {
 
           <!-- Egyszerű lapozás -->
           <div v-if="historyLastPage > 1" class="mt-4 flex items-center justify-between text-sm">
-            <span class="text-gray-500">{{ historyTotal }} esemény</span>
+            <span class="text-gray-500">{{ t('profile.history_total', { count: historyTotal }) }}</span>
             <div class="flex gap-2">
               <button
                 :disabled="historyPage <= 1"
                 @click="loadLoginHistory(historyPage - 1)"
                 class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded disabled:opacity-40"
-              >Előző</button>
+              >{{ t('common.previous') }}</button>
               <span class="px-3 py-1">{{ historyPage }} / {{ historyLastPage }}</span>
               <button
                 :disabled="historyPage >= historyLastPage"
                 @click="loadLoginHistory(historyPage + 1)"
                 class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded disabled:opacity-40"
-              >Következő</button>
+              >{{ t('common.next') }}</button>
             </div>
           </div>
         </div>
@@ -892,11 +862,9 @@ onMounted(() => {
     <!-- Fiók megszüntetése szekció -->
     <section data-section="delete-account" class="bg-white dark:bg-gray-800 rounded-lg shadow border border-red-200 dark:border-red-900/30">
       <div class="p-6 border-b border-red-100 dark:border-red-900/30">
-        <h2 class="text-lg font-semibold text-red-700 dark:text-red-400">Fiók megszüntetése</h2>
+        <h2 class="text-lg font-semibold text-red-700 dark:text-red-400">{{ t('profile.account_deletion_section') }}</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Véglegesen lezárja a fiókod. 30 napos türelmi idő után anonimizálásra kerül.
-          Egyedül a neved marad meg (a rendszerbe bevitt adatok mellett, hogy a műszaki
-          személyzet tudja, ki rögzítette).
+          {{ t('profile.account_deletion_section_desc') }}
         </p>
       </div>
       <div class="p-6">
@@ -904,16 +872,16 @@ onMounted(() => {
         <!-- Pending deletion állapot -->
         <div v-if="isScheduledForDeletion" class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
           <p class="text-sm text-red-900 dark:text-red-200 font-medium">
-            Fiókod <strong>{{ daysUntilDeletion }} nap</strong> múlva véglegesen törlődik.
+            {{ t('profile.account_deletion_pending_text', { days: daysUntilDeletion ?? '?' }) }}
           </p>
           <p class="text-xs text-red-800 dark:text-red-300 mt-1">
-            A tagságaid deaktiválva lettek. A visszavonáshoz kattints alul.
+            {{ t('profile.account_deletion_pending_subtext') }}
           </p>
           <button
             @click="doCancelAccountDeletion"
             class="mt-3 text-sm px-3 py-1.5 bg-white dark:bg-gray-800 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/30"
           >
-            Fiók-törlés visszavonása
+            {{ t('profile.account_deletion_cancel') }}
           </button>
         </div>
 
@@ -924,25 +892,20 @@ onMounted(() => {
             @click="deleteAccountOpen = true"
             class="text-sm px-3 py-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded border border-red-300 dark:border-red-700"
           >
-            Fiók megszüntetése
+            {{ t('profile.account_deletion_button') }}
           </button>
 
           <div v-else class="space-y-3 max-w-md">
             <div class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-xs text-amber-900 dark:text-amber-200">
-              <p class="font-medium mb-1">⚠️ Figyelem</p>
-              <p class="mb-2">
-                Ha egy szervezet <strong>utolsó adminisztrátora</strong> vagy,
-                előbb érdemes kinevezni egy másik admint (új meghívással vagy egy meglévő
-                tag szerepkörének módosításával), különben a szervezetet a Platform
-                szuper-admin fogja felügyelni.
-              </p>
-              <p>A tagjaid email-ben értesítést kapnak, ha te voltál az utolsó admin.</p>
+              <p class="font-medium mb-1">⚠️ {{ t('profile.account_deletion_warning_title') }}</p>
+              <p class="mb-2">{{ t('profile.account_deletion_warning_admin') }}</p>
+              <p>{{ t('profile.account_deletion_warning_email') }}</p>
             </div>
 
             <input
               v-model="deleteAccountPassword"
               type="password"
-              placeholder="Jelszó megerősítése"
+              :placeholder="t('profile.account_deletion_password_placeholder')"
               autocomplete="current-password"
               class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
             />
@@ -954,13 +917,13 @@ onMounted(() => {
                 :disabled="deleteAccountLoading || !deleteAccountPassword"
                 class="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-sm font-medium rounded-lg"
               >
-                {{ deleteAccountLoading ? '…' : 'Igen, indítom a 30 napos visszaszámlálást' }}
+                {{ deleteAccountLoading ? '…' : t('profile.account_deletion_submit') }}
               </button>
               <button
                 @click="deleteAccountOpen = false; deleteAccountPassword = ''; deleteAccountError = ''"
                 class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
               >
-                Mégse
+                {{ t('common.cancel') }}
               </button>
             </div>
           </div>

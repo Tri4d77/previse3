@@ -90,7 +90,7 @@ async function withBusy<T>(fn: () => Promise<T>): Promise<T | null> {
   try {
     return await fn()
   } catch (err: any) {
-    toast.error(err.response?.data?.message ?? t('common.error_generic', 'Hiba történt.'))
+    toast.error(err.response?.data?.message ?? t('common.error_generic'))
     return null
   } finally {
     busy.value = false
@@ -162,7 +162,7 @@ async function saveNewRole() {
       @click.stop="openMenu"
       :disabled="busy"
       class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
-      :title="t('common.actions', 'Műveletek')"
+      :title="t('common.actions')"
     >
       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
@@ -186,7 +186,7 @@ async function saveNewRole() {
         >
           <!-- Saját magát figyelmeztetjük -->
           <div v-if="isSelf" class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 italic border-b border-gray-100 dark:border-gray-700">
-            {{ t('users.self_notice', 'Ez te magad vagy.') }}
+            {{ t('users.self_notice') }}
           </div>
 
           <!-- Szerepkör módosítás -->
@@ -200,14 +200,14 @@ async function saveNewRole() {
               <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
-              {{ t('users.change_role', 'Szerepkör módosítása') }}
+              {{ t('users.change_role') }}
             </button>
           </div>
 
           <!-- Szerepkör szerkesztő -->
           <div v-if="showRoleEditor" class="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
             <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-              {{ t('users.new_role', 'Új szerepkör') }}
+              {{ t('users.new_role') }}
             </label>
             <select
               v-model="newRoleId"
@@ -220,13 +220,13 @@ async function saveNewRole() {
                 @click.stop="saveNewRole"
                 class="flex-1 px-2 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700"
               >
-                {{ t('common.save', 'Mentés') }}
+                {{ t('common.save') }}
               </button>
               <button
                 @click.stop="showRoleEditor = false"
                 class="px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
               >
-                {{ t('common.cancel', 'Mégse') }}
+                {{ t('common.cancel') }}
               </button>
             </div>
           </div>
@@ -245,7 +245,7 @@ async function saveNewRole() {
             <svg v-else class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
             </svg>
-            {{ isActive ? t('users.deactivate', 'Deaktiválás') : t('users.activate', 'Aktiválás') }}
+            {{ isActive ? t('users.deactivate') : t('users.activate') }}
           </button>
 
           <!-- Meghívó újraküldése (csak pending) -->
@@ -257,7 +257,7 @@ async function saveNewRole() {
             <svg class="w-4 h-4 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
-            {{ t('users.resend_invitation', 'Meghívó újraküldése') }}
+            {{ t('users.resend_invitation') }}
           </button>
 
           <!-- Visszaállítás (törölt) -->
@@ -269,7 +269,7 @@ async function saveNewRole() {
             <svg class="w-4 h-4 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            {{ t('users.restore', 'Visszaállítás') }}
+            {{ t('users.restore') }}
           </button>
 
           <!-- Elválasztó -->
@@ -286,7 +286,7 @@ async function saveNewRole() {
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3" />
             </svg>
-            {{ t('users.delete', 'Eltávolítás') }}
+            {{ t('users.delete') }}
           </button>
         </div>
       </Transition>
