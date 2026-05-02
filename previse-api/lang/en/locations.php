@@ -8,4 +8,11 @@ return [
     'restored' => 'Location restored.',
     'type_in_use' => 'This type cannot be deleted because there are locations assigned to it.',
     'type_deleted' => 'Type deleted.',
+
+    // ML2.1 — Floors + Rooms
+    'floor_name_exists' => 'A floor with this name already exists at this location.',
+    'floor_has_rooms' => 'This floor cannot be deleted because it has rooms. Move or delete the rooms first.',
+    'floor_invalid' => 'The selected floor does not belong to this location.',
+    'floor_deleted' => 'Floor deleted.',
+    'room_deleted' => 'Room deleted.',
 ];

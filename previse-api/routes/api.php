@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\FloorsController;
 use App\Http\Controllers\Api\LocationsController;
+use App\Http\Controllers\Api\RoomsController;
+use App\Http\Controllers\Api\RoomTypesController;
 use App\Http\Controllers\Api\LocationTypesController;
 use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\OrganizationController;
@@ -175,4 +178,24 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/location-types', [LocationTypesController::class, 'store'])->name('location-types.store');
     Route::put('/location-types/{locationType}', [LocationTypesController::class, 'update'])->name('location-types.update');
     Route::delete('/location-types/{locationType}', [LocationTypesController::class, 'destroy'])->name('location-types.destroy');
+
+    // --- Szintek (ML2.1) ---
+    Route::get('/locations/{location}/floors', [FloorsController::class, 'index'])->name('locations.floors.index');
+    Route::post('/locations/{location}/floors', [FloorsController::class, 'store'])->name('locations.floors.store');
+    Route::put('/floors/{floor}', [FloorsController::class, 'update'])->name('floors.update');
+    Route::delete('/floors/{floor}', [FloorsController::class, 'destroy'])->name('floors.destroy');
+
+    // --- Helyiségek (ML2.1) ---
+    Route::get('/locations/{location}/rooms', [RoomsController::class, 'indexByLocation'])->name('locations.rooms.index');
+    Route::post('/locations/{location}/rooms', [RoomsController::class, 'store'])->name('locations.rooms.store');
+    Route::get('/locations/{location}/room-types', [RoomsController::class, 'typesAutocomplete'])->name('locations.room-types');
+    Route::get('/floors/{floor}/rooms', [RoomsController::class, 'indexByFloor'])->name('floors.rooms.index');
+    Route::put('/rooms/{room}', [RoomsController::class, 'update'])->name('rooms.update');
+    Route::delete('/rooms/{room}', [RoomsController::class, 'destroy'])->name('rooms.destroy');
+
+    // --- Helyiség-típus katalógus (ML2.1 finalizálás) ---
+    Route::get('/room-types', [RoomTypesController::class, 'index'])->name('room-types.index');
+    Route::post('/room-types', [RoomTypesController::class, 'store'])->name('room-types.store');
+    Route::put('/room-types/{roomType}', [RoomTypesController::class, 'update'])->name('room-types.update');
+    Route::delete('/room-types/{roomType}', [RoomTypesController::class, 'destroy'])->name('room-types.destroy');
 });

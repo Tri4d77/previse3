@@ -8,6 +8,38 @@ részleteket, amelyek a tervezés során felmerültek, de a scope-csökkentés
 
 ## Locations modul
 
+### Helyiség-csoportok (ML2 keretein belül)
+**Forrás**: ML2.1 finalizálás után, user kérés.
+**Tervezett fázis**: **ML2.4** (még az ML2-es nagyobb csomagon belül)
+
+**Üzleti igény**: a helyiségek néha logikailag összevonhatók egy közös térré. Pl. egy bevásárlóközpontban a 3 különálló üzlethelyiséget (A, B, C) egy bérlő összenyitja és „MultiShop" névvel egységes térként használja. A különálló helyiségek (saját nevekkel, számokkal, ticket-előzményeikkel) **megmaradnak** a rendszerben, de tartoznak egy új **helyiség-csoport** entitáshoz is.
+
+**Adatmodell**:
+- Új tábla: `room_groups` (`id`, `location_id`, `name`, `description`, `color` — a csoport opcionális színjelzése a UI-n, `sort_order`, `created_at`, `updated_at`)
+- Pivot: `room_room_group` (`room_id`, `room_group_id`, `joined_at`) — egy helyiség akár több csoportban is lehet (pl. ideiglenes közösség)
+- Permission: `locations.manage_room_groups`
+
+**REST endpointok**:
+- `GET /locations/{location}/room-groups`
+- `POST /locations/{location}/room-groups`
+- `PUT /room-groups/{id}`
+- `DELETE /room-groups/{id}`
+- `POST /room-groups/{id}/rooms` — helyiség hozzáadása a csoporthoz
+- `DELETE /room-groups/{id}/rooms/{room_id}` — helyiség kivétele
+- `GET /room-groups/{id}` — csoport részletei + tagok
+
+**UI**:
+- Új tab a Helyszín részletoldalon: „Helyiség-csoportok" (vagy a Szintek+Helyiségek tab egy szekciójaként)
+- Csoport-lista, kártyák tagok-listával
+- Csoportba szerkesztő modal: helyiségek multi-select listája szintenként csoportosítva
+- A helyiség sorában jelölés, ha legalább egy csoporthoz tartozik (csoport-color badge-ek)
+- Tickets/Tasks/Assets-en a `room_id` mellé a UI **felajánlhatja a csoport megjelölését** is — pl. egy bejelentés egy csoportra mutathat a több helyiség helyett (alkalmazói döntés)
+
+**Üzleti szabályok**:
+- Egy csoportnak a saját `location_id`-jú helyiségeket lehet csak hozzáadni
+- Csoport törlése a tagokat **nem törli**, csak a kapcsolatot
+- Helyiség törlése automatikusan kiveszi a csoportokból (pivot cascade)
+
 ### Interaktív alaprajzi hotspot-rendszer
 **Forrás**: ML3 fázis tervezésekor (2.A kérdés)
 

@@ -10,6 +10,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'edit', l: LocationItem): void
   (e: 'delete', l: LocationItem): void
+  (e: 'open', l: LocationItem): void
 }>()
 
 const { t } = useI18n()
@@ -34,7 +35,10 @@ const statusLabel = computed(() => {
 </script>
 
 <template>
-  <div class="group bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow">
+  <div
+    @click="emit('open', location)"
+    class="group bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+  >
     <!-- Kép -->
     <div class="aspect-[4/3] bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
       <img
@@ -66,7 +70,7 @@ const statusLabel = computed(() => {
           <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ location.name }}</h3>
         </div>
         <button
-          @click="emit('edit', location)"
+          @click.stop="emit('edit', location)"
           class="shrink-0 p-1.5 text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 rounded hover:bg-gray-100 dark:hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
           :title="t('locations.action_edit')"
         >

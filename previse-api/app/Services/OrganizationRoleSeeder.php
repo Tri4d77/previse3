@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\LocationType;
+use App\Models\RoomType;
 use App\Models\Organization;
 use App\Models\Permission;
 use App\Models\Role;
@@ -31,6 +32,7 @@ class OrganizationRoleSeeder
 
         self::createSubscriberRoles($org, $allPermissions);
         self::seedDefaultLocationTypes($org);
+        self::seedDefaultRoomTypes($org);
     }
 
     /**
@@ -52,6 +54,30 @@ class OrganizationRoleSeeder
 
         foreach ($defaults as $i => $name) {
             LocationType::firstOrCreate(
+                ['organization_id' => $org->id, 'name' => $name],
+                ['sort_order' => $i],
+            );
+        }
+    }
+
+    /**
+     * Alap helyiség-típusok minden új subscriber/client szervezethez.
+     */
+    private static function seedDefaultRoomTypes(Organization $org): void
+    {
+        $defaults = [
+            'Iroda',
+            'Tárgyaló',
+            'Raktár',
+            'Folyosó',
+            'Mosdó',
+            'Konyha',
+            'Műszaki',
+            'Egyéb',
+        ];
+
+        foreach ($defaults as $i => $name) {
+            RoomType::firstOrCreate(
                 ['organization_id' => $org->id, 'name' => $name],
                 ['sort_order' => $i],
             );

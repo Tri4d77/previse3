@@ -87,6 +87,14 @@ const router = createRouter({
           component: () => import('@/pages/locations/LocationsPage.vue'),
           meta: { permission: 'locations.read' },
         },
+        // Helyszín részletes oldal (ML2.1)
+        {
+          path: 'locations/:id(\\d+)',
+          name: 'location-detail',
+          component: () => import('@/pages/locations/LocationDetailPage.vue'),
+          meta: { permission: 'locations.read' },
+          props: route => ({ id: Number(route.params.id) }),
+        },
         // Profil
         {
           path: 'profile',

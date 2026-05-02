@@ -702,6 +702,7 @@ interface NavItem {
   icon: string
   permission?: string
   available?: boolean   // ha true, élesített router-link; ha hiányzik vagy false → disabled placeholder
+  requiresBusinessOrg?: boolean  // ha true, csak subscriber/client szervezet kontextusában jelenik meg (Platform-on rejtve)
 }
 
 // Menü elemek
@@ -719,9 +720,9 @@ const businessItems: NavItem[] = [
 ]
 
 const facilityItems: NavItem[] = [
-  { route: 'locations', label: 'nav.locations', icon: svgIcon('locations'), available: true },
-  { route: 'assets', label: 'nav.assets', icon: svgIcon('assets') },
-  { route: 'maintenance', label: 'nav.maintenance', icon: svgIcon('maintenance') },
+  { route: 'locations', label: 'nav.locations', icon: svgIcon('locations'), available: true, requiresBusinessOrg: true },
+  { route: 'assets', label: 'nav.assets', icon: svgIcon('assets'), requiresBusinessOrg: true },
+  { route: 'maintenance', label: 'nav.maintenance', icon: svgIcon('maintenance'), requiresBusinessOrg: true },
 ]
 
 const extraItems: NavItem[] = [
@@ -768,11 +769,24 @@ function isActive(routeName: string): boolean {
   return route.name === routeName
 }
 
+// Üzleti modulok csak subscriber/client szervezet kontextusában jelennek meg
+// (Platform szervezet esetén elrejtjük — a super-admin impersonationnel léphet be)
+const isBusinessOrgContext = computed(() => {
+  const type = authStore.currentOrganizationType
+  return type === 'subscriber' || type === 'client'
+})
+
 // Keresés szűrés - a label lehet fordítási kulcs (nav.xxx) vagy közvetlen szöveg
 function filteredItems(items: NavItem[]): NavItem[] {
-  if (!menuSearch.value) return items
+  // Először szűrjük ki a Platform-on rejtett (üzleti) elemeket
+  let result = items.filter(item => {
+    if (item.requiresBusinessOrg && !isBusinessOrgContext.value) return false
+    return true
+  })
+
+  if (!menuSearch.value) return result
   const q = menuSearch.value.toLowerCase()
-  return items.filter(item => {
+  return result.filter(item => {
     const label = item.label.startsWith('nav.') || item.label.startsWith('common.') || item.label.startsWith('users.') || item.label.startsWith('roles.')
       ? t(item.label)
       : item.label

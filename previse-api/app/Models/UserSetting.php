@@ -15,6 +15,8 @@ class UserSetting extends Model
         'timezone',
         'items_per_page',
         'locations_view',
+        'locations_floors_sort',
+        'locations_rooms_sort',
         'default_organization_id',
         'lockscreen_timeout_minutes',
         'notification_email',

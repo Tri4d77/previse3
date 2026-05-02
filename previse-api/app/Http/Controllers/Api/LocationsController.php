@@ -39,6 +39,8 @@ class LocationsController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorizePermission($request->user(), 'locations.read');
+
         $orgId = $this->resolveOrgId($request->user());
         if (! $orgId) {
             return response()->json(['data' => [], 'meta' => $this->emptyMeta()]);
@@ -100,6 +102,7 @@ class LocationsController extends Controller
 
     public function show(Request $request, Location $location): JsonResponse
     {
+        $this->authorizePermission($request->user(), 'locations.read');
         $this->authorizeOrg($request->user(), $location);
         $location->load('type');
         return response()->json(['data' => $this->format($location)]);
@@ -107,6 +110,7 @@ class LocationsController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizePermission($request->user(), 'locations.create');
         $orgId = $this->resolveOrgId($request->user());
         if (! $orgId) {
             return response()->json(['message' => __('locations.no_org_context')], 403);
@@ -141,6 +145,7 @@ class LocationsController extends Controller
 
     public function update(Request $request, Location $location): JsonResponse
     {
+        $this->authorizePermission($request->user(), 'locations.update');
         $this->authorizeOrg($request->user(), $location);
 
         $orgId = $location->organization_id;
@@ -165,6 +170,7 @@ class LocationsController extends Controller
 
     public function setStatus(Request $request, Location $location): JsonResponse
     {
+        $this->authorizePermission($request->user(), 'locations.update');
         $this->authorizeOrg($request->user(), $location);
 
         $validated = $request->validate([
@@ -179,6 +185,7 @@ class LocationsController extends Controller
 
     public function destroy(Request $request, Location $location): JsonResponse
     {
+        $this->authorizePermission($request->user(), 'locations.delete');
         $this->authorizeOrg($request->user(), $location);
 
         // ML2-től üzleti szabály: nem törölhető, ha aktív ticket/feladat/eszköz tartozik hozzá.
@@ -190,6 +197,8 @@ class LocationsController extends Controller
 
     public function restore(Request $request, int $id): JsonResponse
     {
+        $this->authorizePermission($request->user(), 'locations.delete');
+
         $location = Location::withTrashed()->find($id);
         if (! $location) {
             return response()->json(['message' => __('locations.not_found')], 404);
@@ -210,6 +219,7 @@ class LocationsController extends Controller
      */
     public function uploadImage(Request $request, Location $location): JsonResponse
     {
+        $this->authorizePermission($request->user(), 'locations.update');
         $this->authorizeOrg($request->user(), $location);
 
         $request->validate([
@@ -251,6 +261,7 @@ class LocationsController extends Controller
 
     public function deleteImage(Request $request, Location $location): JsonResponse
     {
+        $this->authorizePermission($request->user(), 'locations.update');
         $this->authorizeOrg($request->user(), $location);
         $this->deleteImageFiles($location);
         $location->update(['image_path' => null]);
@@ -288,6 +299,17 @@ class LocationsController extends Controller
             if (! $user->isSuperAdmin()) {
                 abort(403, __('locations.forbidden'));
             }
+        }
+    }
+
+    /**
+     * Permission ellenőrzés (super-admin minden permission-t megkap).
+     */
+    private function authorizePermission(User $user, string $permission): void
+    {
+        if ($user->isSuperAdmin()) return;
+        if (! $user->hasPermission($permission)) {
+            abort(403, __('locations.forbidden'));
         }
     }
 

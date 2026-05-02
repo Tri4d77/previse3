@@ -65,6 +65,27 @@ class Location extends Model
         return $this->belongsTo(LocationType::class, 'type_id');
     }
 
+    public function floors(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Floor::class)->orderBy('sort_order')->orderBy('level');
+    }
+
+    /**
+     * Az összes helyiség a helyszínen (szinttel és anélkül is).
+     */
+    public function rooms(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Room::class);
+    }
+
+    /**
+     * Csak a szint nélküli helyiségek (közvetlen a Locationhoz).
+     */
+    public function unassignedRooms(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Room::class)->whereNull('floor_id');
+    }
+
     // ========== HELPER METÓDUSOK ==========
 
     public function isActive(): bool

@@ -376,6 +376,9 @@ class ProfileController extends Controller
             'notification_email' => ['sometimes', 'boolean'],
             'notification_push' => ['sometimes', 'boolean'],
             'notification_sound' => ['sometimes', 'boolean'],
+            'locations_view' => ['sometimes', 'string', Rule::in(['list', 'cards'])],
+            'locations_floors_sort' => ['sometimes', 'string', Rule::in(['name', 'level'])],
+            'locations_rooms_sort' => ['sometimes', 'string', Rule::in(['name', 'number', 'type'])],
         ]);
 
         $user = $request->user();

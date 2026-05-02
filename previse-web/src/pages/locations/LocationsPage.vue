@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   fetchLocations,
@@ -18,6 +19,7 @@ import LocationCard from '@/components/locations/LocationCard.vue'
 import LocationFormModal from '@/components/locations/LocationFormModal.vue'
 
 const { t } = useI18n()
+const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToastStore()
 
@@ -126,6 +128,10 @@ function onNewLocation() {
 function onEditLocation(loc: LocationItem) {
   editingLocation.value = loc
   showFormModal.value = true
+}
+
+function onOpenLocation(loc: LocationItem) {
+  router.push({ name: 'location-detail', params: { id: loc.id } })
 }
 
 function onLocationSaved(_: LocationItem) {
@@ -318,6 +324,7 @@ onMounted(() => {
         :location="loc"
         @edit="onEditLocation"
         @delete="onDeleteLocation"
+        @open="onOpenLocation"
       />
     </div>
 
@@ -349,7 +356,8 @@ onMounted(() => {
             <tr
               v-for="loc in locations"
               :key="loc.id"
-              class="hover:bg-gray-50 dark:hover:bg-gray-700/30"
+              @click="onOpenLocation(loc)"
+              class="hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer"
               :class="loc.is_deleted ? 'opacity-60' : ''"
             >
               <td class="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-300">{{ loc.code }}</td>
@@ -376,27 +384,27 @@ onMounted(() => {
               </td>
               <td class="px-4 py-3 text-right">
                 <button
-                  @click="onEditLocation(loc)"
+                  @click.stop="onEditLocation(loc)"
                   class="text-teal-600 hover:text-teal-700 text-xs font-medium"
                 >
                   {{ t('locations.action_edit') }}
                 </button>
                 <button
                   v-if="loc.is_active === 1"
-                  @click="onSetStatus(loc, 0)"
+                  @click.stop="onSetStatus(loc, 0)"
                   class="ml-3 text-amber-600 hover:text-amber-700 text-xs font-medium"
                 >
                   {{ t('locations.action_archive') }}
                 </button>
                 <button
                   v-if="loc.is_active === 0"
-                  @click="onSetStatus(loc, 1)"
+                  @click.stop="onSetStatus(loc, 1)"
                   class="ml-3 text-green-600 hover:text-green-700 text-xs font-medium"
                 >
                   {{ t('locations.action_unarchive') }}
                 </button>
                 <button
-                  @click="onDeleteLocation(loc)"
+                  @click.stop="onDeleteLocation(loc)"
                   class="ml-3 text-red-600 hover:text-red-700 text-xs font-medium"
                 >
                   {{ t('locations.action_delete') }}

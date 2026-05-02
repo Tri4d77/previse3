@@ -29,6 +29,8 @@ export interface UserSettings {
   timezone: string
   items_per_page: number
   locations_view: 'list' | 'cards'
+  locations_floors_sort: 'name' | 'level'
+  locations_rooms_sort: 'name' | 'number' | 'type'
   default_organization_id: number | null
   lockscreen_timeout_minutes: number
   notification_email: boolean
