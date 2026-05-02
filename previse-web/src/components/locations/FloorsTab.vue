@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToastStore } from '@/stores/toast'
+import { useConfirmStore } from '@/stores/confirm'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 import {
@@ -30,6 +31,7 @@ const props = defineProps<Props>()
 
 const { t } = useI18n()
 const toast = useToastStore()
+const confirmStore = useConfirmStore()
 const authStore = useAuthStore()
 
 // ----- State -----
@@ -49,6 +51,23 @@ const roomSort = ref<RoomSort>(
 
 // Per-session összecsukási állapot (NEM perzisztáljuk)
 const collapsedFloorIds = ref<Set<number>>(new Set())
+
+// Gyorskereső a helyiségek között (név/szám/típus)
+const roomSearch = ref('')
+
+function matchesSearch(r: RoomItem, q: string): boolean {
+  if (!q) return true
+  const fields = [r.name, r.number, r.type].filter(Boolean) as string[]
+  return fields.some((f) => f.toLowerCase().includes(q))
+}
+
+const filteredRooms = computed<RoomItem[]>(() => {
+  const q = roomSearch.value.trim().toLowerCase()
+  if (!q) return rooms.value
+  return rooms.value.filter((r) => matchesSearch(r, q))
+})
+
+const hasAnySearchMatch = computed(() => filteredRooms.value.length > 0)
 
 // ----- Sort persistence -----
 async function setFloorSort(value: FloorSort) {
@@ -74,11 +93,15 @@ async function persistSetting(key: string, value: string) {
 
 // ----- Sort logic -----
 const sortedFloors = computed<FloorItem[]>(() => {
-  const arr = [...floors.value]
+  let arr = [...floors.value]
   if (floorSort.value === 'name') {
     arr.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
   } else {
     arr.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
+  }
+  // Keresésnél csak azokat a szinteket mutatjuk, ahol van találat
+  if (roomSearch.value.trim()) {
+    arr = arr.filter((f) => (roomsByFloor.value[f.id]?.length ?? 0) > 0)
   }
   return arr
 })
@@ -106,7 +129,7 @@ function sortRooms(list: RoomItem[]): RoomItem[] {
 
 const roomsByFloor = computed<Record<number, RoomItem[]>>(() => {
   const map: Record<number, RoomItem[]> = {}
-  for (const r of rooms.value) {
+  for (const r of filteredRooms.value) {
     if (r.floor_id == null) continue
     if (!map[r.floor_id]) map[r.floor_id] = []
     map[r.floor_id].push(r)
@@ -116,7 +139,7 @@ const roomsByFloor = computed<Record<number, RoomItem[]>>(() => {
   }
   return map
 })
-const unassignedRooms = computed(() => sortRooms(rooms.value.filter(r => r.floor_id == null)))
+const unassignedRooms = computed(() => sortRooms(filteredRooms.value.filter(r => r.floor_id == null)))
 
 // ----- Collapse -----
 function toggleFloor(floorId: number) {
@@ -196,7 +219,13 @@ async function onSaveFloor(payload: { name: string; level: number; description: 
 }
 
 async function onDeleteFloor(floor: FloorItem) {
-  if (!confirm(t('locations.floor_delete_confirm', { name: floor.name }))) return
+  const ok = await confirmStore.ask({
+    title: t('locations.floor_deleted'),
+    message: t('locations.floor_delete_confirm', { name: floor.name }),
+    confirmText: t('common.delete'),
+    variant: 'danger',
+  })
+  if (!ok) return
   try {
     await deleteFloor(floor.id)
     toast.success(t('locations.floor_deleted'))
@@ -243,7 +272,13 @@ async function onSaveRoom(payload: {
 }
 
 async function onDeleteRoom(room: RoomItem) {
-  if (!confirm(t('locations.room_delete_confirm', { name: room.name }))) return
+  const ok = await confirmStore.ask({
+    title: t('locations.room_deleted'),
+    message: t('locations.room_delete_confirm', { name: room.name }),
+    confirmText: t('common.delete'),
+    variant: 'danger',
+  })
+  if (!ok) return
   try {
     await deleteRoom(room.id)
     toast.success(t('locations.room_deleted'))
@@ -356,14 +391,36 @@ onMounted(load)
       </div>
     </div>
 
+    <!-- Helyiség-gyorskereső (csak ha legalább 4 helyiség van) -->
+    <div v-if="rooms.length >= 4" class="relative">
+      <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <input
+        v-model="roomSearch"
+        type="text"
+        :placeholder="t('locations.rooms_search_placeholder')"
+        class="block w-full pl-9 pr-9 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500"
+      />
+      <button
+        v-if="roomSearch"
+        @click="roomSearch = ''"
+        class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
     <!-- Loading -->
     <div v-if="loading" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
       <div class="animate-spin w-6 h-6 border-4 border-teal-500 border-t-transparent rounded-full mx-auto"></div>
     </div>
 
-    <!-- Üres állapot -->
+    <!-- Üres állapot (semmi sincs) -->
     <div
-      v-else-if="floors.length === 0 && unassignedRooms.length === 0"
+      v-else-if="floors.length === 0 && rooms.length === 0"
       class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center"
     >
       <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -372,6 +429,14 @@ onMounted(load)
       </svg>
       <p class="text-sm text-gray-600 dark:text-gray-300 font-medium">{{ t('locations.floors_empty') }}</p>
       <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">{{ t('locations.floors_empty_hint') }}</p>
+    </div>
+
+    <!-- Keresés - nincs találat -->
+    <div
+      v-else-if="roomSearch && !hasAnySearchMatch"
+      class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-10 text-center text-sm text-gray-500 dark:text-gray-400"
+    >
+      {{ t('locations.search_no_match') }}
     </div>
 
     <template v-else>

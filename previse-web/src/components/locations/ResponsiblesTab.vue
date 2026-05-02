@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToastStore } from '@/stores/toast'
+import { useConfirmStore } from '@/stores/confirm'
 import {
   fetchResponsibles,
   fetchAvailableResponsibles,
@@ -19,6 +20,7 @@ const props = defineProps<Props>()
 
 const { t } = useI18n()
 const toast = useToastStore()
+const confirmStore = useConfirmStore()
 
 const items = ref<LocationResponsible[]>([])
 const available = ref<LocationResponsible[]>([])
@@ -60,7 +62,13 @@ async function handleAdd() {
 }
 
 async function handleRemove(r: LocationResponsible) {
-  if (!confirm(t('locations.responsible_remove_confirm', { name: r.user?.name ?? '' }))) return
+  const ok = await confirmStore.ask({
+    title: t('locations.responsible_removed'),
+    message: t('locations.responsible_remove_confirm', { name: r.user?.name ?? '' }),
+    confirmText: t('common.delete'),
+    variant: 'danger',
+  })
+  if (!ok) return
   try {
     await removeResponsible(props.locationId, r.id)
     toast.success(t('locations.responsible_removed'))

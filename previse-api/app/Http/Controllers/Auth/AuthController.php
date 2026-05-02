@@ -643,6 +643,12 @@ class AuthController extends Controller
                     'password' => [__('auth.password')],
                 ]);
             }
+
+            // Ha korábban deaktiválódott (pl. minden tagsága törlésekor),
+            // most az új meghívó elfogadásával újra aktívvá válik.
+            if (! $user->is_active) {
+                $user->update(['is_active' => true]);
+            }
         }
 
         // Membership aktiválása

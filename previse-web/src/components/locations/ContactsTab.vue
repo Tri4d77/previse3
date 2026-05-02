@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToastStore } from '@/stores/toast'
+import { useConfirmStore } from '@/stores/confirm'
 import {
   fetchContacts,
   createContact,
@@ -20,11 +21,22 @@ const props = defineProps<Props>()
 
 const { t } = useI18n()
 const toast = useToastStore()
+const confirmStore = useConfirmStore()
 
 const contacts = ref<LocationContact[]>([])
 const loading = ref(false)
 const showModal = ref(false)
 const editing = ref<LocationContact | null>(null)
+const searchQuery = ref('')
+
+const filteredContacts = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return contacts.value
+  return contacts.value.filter((c) => {
+    const fields = [c.name, c.role_label, c.phone, c.email].filter(Boolean) as string[]
+    return fields.some((f) => f.toLowerCase().includes(q))
+  })
+})
 
 async function load() {
   loading.value = true
@@ -64,7 +76,13 @@ async function handleSave(payload: any) {
 }
 
 async function handleDelete(c: LocationContact) {
-  if (!confirm(t('locations.contact_delete_confirm', { name: c.name }))) return
+  const ok = await confirmStore.ask({
+    title: t('locations.contact_deleted'),
+    message: t('locations.contact_delete_confirm', { name: c.name }),
+    confirmText: t('common.delete'),
+    variant: 'danger',
+  })
+  if (!ok) return
   try {
     await deleteContact(c.id)
     toast.success(t('locations.contact_deleted'))
@@ -101,9 +119,39 @@ onMounted(load)
       {{ t('locations.contacts_empty') }}
     </div>
 
-    <ul v-else class="divide-y divide-gray-100 dark:divide-gray-700">
+    <template v-else>
+      <!-- Gyorskereső -->
+      <div v-if="contacts.length > 3" class="p-3 border-b border-gray-100 dark:border-gray-700">
+        <div class="relative">
+          <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="t('locations.contacts_search_placeholder')"
+            class="block w-full pl-9 pr-9 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500"
+          />
+          <button
+            v-if="searchQuery"
+            @click="searchQuery = ''"
+            class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+            :title="t('common.cancel')"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div v-if="!filteredContacts.length" class="p-10 text-center text-sm text-gray-500 dark:text-gray-400">
+        {{ t('locations.search_no_match') }}
+      </div>
+
+      <ul v-else class="divide-y divide-gray-100 dark:divide-gray-700">
       <li
-        v-for="c in contacts"
+        v-for="c in filteredContacts"
         :key="c.id"
         class="p-4 flex items-center gap-3"
       >
@@ -154,7 +202,8 @@ onMounted(load)
           </button>
         </div>
       </li>
-    </ul>
+      </ul>
+    </template>
 
     <ContactFormModal
       v-if="showModal"

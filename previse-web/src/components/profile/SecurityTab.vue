@@ -32,10 +32,12 @@ import {
 } from '@/services/authEvents'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
+import { useConfirmStore } from '@/stores/confirm'
 import { useRouter } from 'vue-router'
 
 const { t } = useI18n()
 const toast = useToastStore()
+const confirmStore = useConfirmStore()
 const authStore = useAuthStore()
 const router = useRouter()
 
@@ -98,7 +100,13 @@ async function loadSessions() {
 
 async function onRevokeSession(s: SessionItem) {
   if (s.is_current) return
-  if (!confirm(t('profile.session_revoke_confirm'))) return
+  const ok = await confirmStore.ask({
+    title: t('profile.session_revoke'),
+    message: t('profile.session_revoke_confirm'),
+    confirmText: t('profile.session_revoke'),
+    variant: 'warning',
+  })
+  if (!ok) return
 
   revokingId.value = s.id
   try {
@@ -113,7 +121,13 @@ async function onRevokeSession(s: SessionItem) {
 }
 
 async function onRevokeOthers() {
-  if (!confirm(t('profile.sessions_revoke_others_confirm'))) return
+  const ok = await confirmStore.ask({
+    title: t('profile.sessions_revoke_others'),
+    message: t('profile.sessions_revoke_others_confirm'),
+    confirmText: t('profile.sessions_revoke_others'),
+    variant: 'warning',
+  })
+  if (!ok) return
   try {
     await revokeOtherSessions()
     toast.success(t('profile.sessions_revoke_others'))
@@ -192,7 +206,13 @@ async function submitEmailChange() {
 }
 
 async function cancelPendingEmailChange() {
-  if (!confirm(t('profile.email_pending_cancel_confirm'))) return
+  const ok = await confirmStore.ask({
+    title: t('profile.email_pending_cancel'),
+    message: t('profile.email_pending_cancel_confirm'),
+    confirmText: t('common.confirm'),
+    variant: 'warning',
+  })
+  if (!ok) return
   try {
     await cancelEmailChange()
     toast.success(t('profile.email_change_cancel_success'))
@@ -263,7 +283,13 @@ async function onDisable2fa() {
 }
 
 async function onRegenRecoveryCodes() {
-  if (!confirm(t('profile.two_factor_recovery_regenerate_confirm'))) return
+  const ok = await confirmStore.ask({
+    title: t('profile.two_factor_recovery_regenerate'),
+    message: t('profile.two_factor_recovery_regenerate_confirm'),
+    confirmText: t('profile.two_factor_recovery_regenerate'),
+    variant: 'warning',
+  })
+  if (!ok) return
   try {
     twoFaRecoveryCodes.value = await regen2faCodes()
     toast.success(t('profile.two_factor_recovery_regenerate_success'))
@@ -323,7 +349,13 @@ const memberships = computed(() => authStore.memberships ?? [])
 const leavingMembershipId = ref<number | null>(null)
 
 async function onLeaveMembership(membershipId: number, orgName: string) {
-  if (!confirm(t('profile.memberships_leave_confirm', { name: orgName }))) return
+  const ok = await confirmStore.ask({
+    title: t('profile.memberships_leave'),
+    message: t('profile.memberships_leave_confirm', { name: orgName }),
+    confirmText: t('profile.memberships_leave'),
+    variant: 'warning',
+  })
+  if (!ok) return
 
   leavingMembershipId.value = membershipId
   try {
@@ -333,7 +365,12 @@ async function onLeaveMembership(membershipId: number, orgName: string) {
   } catch (err: any) {
     const code = err.response?.data?.code
     if (code === 'last_active_membership') {
-      if (confirm(t('profile.memberships_last_warning'))) {
+      const ok2 = await confirmStore.ask({
+        title: t('profile.memberships_leave'),
+        message: t('profile.memberships_last_warning'),
+        variant: 'warning',
+      })
+      if (ok2) {
         deleteAccountOpen.value = true
         document.querySelector('[data-section="delete-account"]')?.scrollIntoView({ behavior: 'smooth' })
       }
@@ -401,7 +438,13 @@ function formatDateTime(iso: string): string {
 }
 
 async function doCancelAccountDeletion() {
-  if (!confirm(t('profile.account_deletion_cancel_confirm'))) return
+  const ok = await confirmStore.ask({
+    title: t('profile.account_deletion_cancel'),
+    message: t('profile.account_deletion_cancel_confirm'),
+    confirmText: t('profile.account_deletion_cancel'),
+    variant: 'warning',
+  })
+  if (!ok) return
   try {
     await cancelAccountDeletion()
     toast.success(t('profile.account_deletion_cancel_success'))

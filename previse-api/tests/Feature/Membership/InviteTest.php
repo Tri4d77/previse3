@@ -345,3 +345,44 @@ test('meghívó elfogadás - létező user rossz jelszóval -> hiba', function (
     $response->assertUnprocessable()
         ->assertJsonValidationErrors(['password']);
 });
+
+test('meghívó elfogadás - inaktív létező user reaktiválódik', function () {
+    // Korábban deaktiválódott user (pl. minden tagsága törlésekor)
+    $existing = User::create([
+        'name' => 'Régi',
+        'email' => 'regi@valahol.hu',
+        'password' => 'OldPass123!',
+        'is_active' => false,
+        'email_verified_at' => now(),
+    ]);
+
+    // Admin újra meghívja egy szervezetbe
+    $token = loginAsAdmin();
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->postJson('/api/v1/memberships', [
+            'email' => 'regi@valahol.hu',
+            'role_id' => $this->userRole->id,
+        ]);
+
+    $membership = Membership::where('user_id', $existing->id)
+        ->where('organization_id', $this->org->id)
+        ->first();
+
+    // Elfogadja a régi jelszavával
+    $this->postJson('/api/v1/auth/accept-invitation', [
+        'token' => $membership->invitation_token,
+        'password' => 'OldPass123!',
+        'password_confirmation' => 'OldPass123!',
+    ])->assertOk();
+
+    // user.is_active újra true → be tud lépni
+    $existing->refresh();
+    expect($existing->is_active)->toBeTrue();
+
+    $login = $this->postJson('/api/v1/auth/login', [
+        'email' => 'regi@valahol.hu',
+        'password' => 'OldPass123!',
+        'device_name' => 'Test',
+    ]);
+    $login->assertOk();
+});

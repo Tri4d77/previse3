@@ -463,6 +463,9 @@ export default {
     rooms_sort_type: 'Típus',
 
     // ML2.2 — Kontaktok
+    contacts_search_placeholder: 'Keresés név, szerepkör, telefon vagy e-mail alapján…',
+    rooms_search_placeholder: 'Keresés név, szám vagy típus alapján…',
+    search_no_match: 'Nincs találat a keresésre.',
     contacts_section: 'Kontaktok',
     contacts_section_desc: 'Külső személyek (gondnok, portás, üzemeltető, stb.) elérhetőségei a helyszínen.',
     contacts_empty: 'Még nincs kontakt felvéve.',

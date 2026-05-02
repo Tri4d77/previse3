@@ -2,6 +2,7 @@
 import { RouterView } from 'vue-router'
 import { watch, onMounted } from 'vue'
 import ToastContainer from '@/components/common/ToastContainer.vue'
+import GlobalConfirmDialog from '@/components/common/GlobalConfirmDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLocale } from '@/composables/useLocale'
 
@@ -26,4 +27,5 @@ watch(
 <template>
   <RouterView />
   <ToastContainer />
+  <GlobalConfirmDialog />
 </template>

@@ -15,6 +15,7 @@ import {
 } from '@/services/locations'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
+import { useConfirmStore } from '@/stores/confirm'
 import LocationCard from '@/components/locations/LocationCard.vue'
 import LocationFormModal from '@/components/locations/LocationFormModal.vue'
 
@@ -22,6 +23,7 @@ const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToastStore()
+const confirmStore = useConfirmStore()
 
 // Nézet (list / cards), perzisztálva user_settings.locations_view-ba
 type ViewMode = 'list' | 'cards'
@@ -141,7 +143,13 @@ function onLocationSaved(_: LocationItem) {
 }
 
 async function onDeleteLocation(loc: LocationItem) {
-  if (!confirm(t('locations.confirm_delete', { name: loc.name }))) return
+  const ok = await confirmStore.ask({
+    title: t('locations.deleted'),
+    message: t('locations.confirm_delete', { name: loc.name }),
+    confirmText: t('common.delete'),
+    variant: 'danger',
+  })
+  if (!ok) return
   try {
     await deleteLocation(loc.id)
     toast.success(t('locations.deleted'))

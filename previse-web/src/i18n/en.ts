@@ -453,6 +453,9 @@ export default {
     rooms_sort_type: 'Type',
 
     // ML2.2 — Contacts
+    contacts_search_placeholder: 'Search by name, role, phone or e-mail…',
+    rooms_search_placeholder: 'Search by name, number or type…',
+    search_no_match: 'No matches found.',
     contacts_section: 'Contacts',
     contacts_section_desc: 'External people (caretaker, doorman, operator, etc.) reachable at this location.',
     contacts_empty: 'No contacts yet.',

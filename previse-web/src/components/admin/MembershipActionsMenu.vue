@@ -12,6 +12,7 @@ import {
 } from '@/services/memberships'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
+import { useConfirmStore } from '@/stores/confirm'
 
 interface Props {
   membership: MembershipItem
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const auth = useAuthStore()
 const toast = useToastStore()
+const confirmStore = useConfirmStore()
 
 const isOpen = ref(false)
 const triggerRef = ref<HTMLButtonElement | null>(null)
@@ -118,7 +120,13 @@ async function onResend() {
 
 async function onDelete() {
   if (isSelf.value) return
-  if (!confirm(t('users.confirm_delete', { name: props.membership.user.name }))) return
+  const ok = await confirmStore.ask({
+    title: t('users.deleted'),
+    message: t('users.confirm_delete', { name: props.membership.user.name }),
+    confirmText: t('common.delete'),
+    variant: 'danger',
+  })
+  if (!ok) return
   const r = await withBusy(() => deleteMembership(props.membership.id))
   if (r !== null) {
     toast.success(t('users.deleted'))
