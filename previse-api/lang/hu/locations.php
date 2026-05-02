@@ -20,4 +20,7 @@ return [
     'contact_deleted' => 'Kontakt törölve.',
     'responsible_invalid' => 'Érvénytelen felelős kiválasztás.',
     'responsible_removed' => 'Felelős eltávolítva.',
+
+    // ML2.3 — Tags
+    'tag_deleted' => 'Címke törölve.',
 ];

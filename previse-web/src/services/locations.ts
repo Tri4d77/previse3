@@ -26,6 +26,7 @@ export interface LocationItem {
   thumb_url: string | null
   is_active: LocationStatus
   is_deleted: boolean
+  tags: { id: number; name: string; color: string; sort_order: number }[]
   created_at: string
   updated_at: string
 }

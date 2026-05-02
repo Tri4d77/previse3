@@ -18,6 +18,7 @@ import { useToastStore } from '@/stores/toast'
 import { useConfirmStore } from '@/stores/confirm'
 import LocationCard from '@/components/locations/LocationCard.vue'
 import LocationFormModal from '@/components/locations/LocationFormModal.vue'
+import TagsManager from '@/components/locations/TagsManager.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -62,6 +63,9 @@ const perPage = ref(25)
 // Modal state
 const showFormModal = ref(false)
 const editingLocation = ref<LocationItem | null>(null)
+const showTagsManager = ref(false)
+
+const canManageTags = computed(() => authStore.hasPermission('locations.manage_tags'))
 
 // ============== METÓDUSOK ==============
 
@@ -238,6 +242,18 @@ onMounted(() => {
             </svg>
           </button>
         </div>
+
+        <button
+          v-if="canManageTags"
+          @click="showTagsManager = true"
+          class="px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 inline-flex items-center gap-1"
+          :title="t('locations.tags_manage')"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+          {{ t('locations.tags') }}
+        </button>
 
         <button
           @click="onNewLocation"
@@ -453,5 +469,24 @@ onMounted(() => {
       @close="showFormModal = false; editingLocation = null"
       @saved="onLocationSaved"
     />
+
+    <!-- Címke katalógus modal -->
+    <div
+      v-if="showTagsManager"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      @click.self="showTagsManager = false"
+    >
+      <div class="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <TagsManager :can-manage="canManageTags" />
+        <div class="flex justify-end mt-3">
+          <button
+            @click="showTagsManager = false"
+            class="px-4 py-2 text-sm text-white bg-gray-700 hover:bg-gray-800 rounded-lg"
+          >
+            {{ t('common.close') }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

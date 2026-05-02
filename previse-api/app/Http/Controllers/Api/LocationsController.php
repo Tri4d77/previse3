@@ -46,7 +46,7 @@ class LocationsController extends Controller
             return response()->json(['data' => [], 'meta' => $this->emptyMeta()]);
         }
 
-        $query = Location::with('type')->where('organization_id', $orgId);
+        $query = Location::with(['type', 'tags'])->where('organization_id', $orgId);
 
         // is_active szűrés: alap aktív, de szűrhető
         $statusFilter = $request->input('is_active', 'active');
@@ -104,7 +104,7 @@ class LocationsController extends Controller
     {
         $this->authorizePermission($request->user(), 'locations.read');
         $this->authorizeOrg($request->user(), $location);
-        $location->load('type');
+        $location->load(['type', 'tags']);
         return response()->json(['data' => $this->format($location)]);
     }
 
@@ -138,7 +138,7 @@ class LocationsController extends Controller
         $validated['is_active'] = $validated['is_active'] ?? Location::STATE_ACTIVE;
 
         $location = Location::create($validated);
-        $location->load('type');
+        $location->load(['type', 'tags']);
 
         return response()->json(['data' => $this->format($location)], 201);
     }
@@ -163,7 +163,7 @@ class LocationsController extends Controller
         ]);
 
         $location->update($validated);
-        $location->load('type');
+        $location->load(['type', 'tags']);
 
         return response()->json(['data' => $this->format($location)]);
     }
@@ -178,7 +178,7 @@ class LocationsController extends Controller
         ]);
 
         $location->update(['is_active' => $validated['is_active']]);
-        $location->load('type');
+        $location->load(['type', 'tags']);
 
         return response()->json(['data' => $this->format($location)]);
     }
@@ -206,7 +206,7 @@ class LocationsController extends Controller
         $this->authorizeOrg($request->user(), $location);
 
         $location->restore();
-        $location->load('type');
+        $location->load(['type', 'tags']);
         return response()->json(['data' => $this->format($location)]);
     }
 
@@ -254,7 +254,7 @@ class LocationsController extends Controller
         Storage::disk('public')->put($thumbPath, (string) $thumb->encode(new JpegEncoder(quality: 80)));
 
         $location->update(['image_path' => $mainPath]);
-        $location->load('type');
+        $location->load(['type', 'tags']);
 
         return response()->json(['data' => $this->format($location)]);
     }
@@ -265,7 +265,7 @@ class LocationsController extends Controller
         $this->authorizeOrg($request->user(), $location);
         $this->deleteImageFiles($location);
         $location->update(['image_path' => null]);
-        $location->load('type');
+        $location->load(['type', 'tags']);
         return response()->json(['data' => $this->format($location)]);
     }
 
@@ -347,6 +347,14 @@ class LocationsController extends Controller
                 : null,
             'is_active' => $l->is_active,
             'is_deleted' => $l->trashed(),
+            'tags' => $l->relationLoaded('tags')
+                ? $l->tags->map(fn ($t) => [
+                    'id' => $t->id,
+                    'name' => $t->name,
+                    'color' => $t->color,
+                    'sort_order' => $t->sort_order,
+                ])->all()
+                : [],
             'created_at' => $l->created_at?->toIso8601String(),
             'updated_at' => $l->updated_at?->toIso8601String(),
         ];

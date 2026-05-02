@@ -86,6 +86,7 @@ export default {
   common: {
     save: 'Mentés',
     cancel: 'Mégse',
+    close: 'Bezárás',
     delete: 'Törlés',
     edit: 'Szerkesztés',
     create: 'Létrehozás',
@@ -463,6 +464,23 @@ export default {
     rooms_sort_type: 'Típus',
 
     // ML2.2 — Kontaktok
+    // ML2.3 — Tags
+    tags: 'Címkék',
+    tags_section: 'Címke-katalógus',
+    tags_section_desc: 'Az itt felvett címkékkel jelölheted a helyszíneket (pl. VIP, Új, Bejárás szükséges).',
+    tags_empty: 'Még nincs címke felvéve.',
+    tags_pick_placeholder: 'Válassz címkéket…',
+    tags_all_selected: 'Az összes címke kiválasztva.',
+    tags_manage: 'Címkék kezelése',
+    tag_new: 'Új címke',
+    tag_edit: 'Címke szerkesztése',
+    tag_name: 'Név',
+    tag_name_placeholder: 'pl. VIP, Új, Lift hibás',
+    tag_color: 'Szín',
+    tag_created: 'Címke létrehozva.',
+    tag_updated: 'Címke frissítve.',
+    tag_delete_confirm: 'Biztosan törlöd a(z) "{name}" címkét? A hozzárendelések is törlődnek.',
+
     contacts_search_placeholder: 'Keresés név, szerepkör, telefon vagy e-mail alapján…',
     rooms_search_placeholder: 'Keresés név, szám vagy típus alapján…',
     search_no_match: 'Nincs találat a keresésre.',

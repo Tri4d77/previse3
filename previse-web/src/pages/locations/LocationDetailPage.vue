@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import FloorsTab from '@/components/locations/FloorsTab.vue'
 import ContactsTab from '@/components/locations/ContactsTab.vue'
 import ResponsiblesTab from '@/components/locations/ResponsiblesTab.vue'
+import { tagBadgeClass, type TagColor } from '@/services/locationTags'
 
 interface Props {
   id: number
@@ -112,6 +113,14 @@ onMounted(loadLocation)
                   </span>
                   <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="statusBadgeClass(location.is_active)">
                     {{ statusLabel(location.is_active) }}
+                  </span>
+                  <span
+                    v-for="tag in (location.tags ?? [])"
+                    :key="tag.id"
+                    class="text-xs px-2 py-0.5 rounded-full font-medium"
+                    :class="tagBadgeClass(tag.color as TagColor)"
+                  >
+                    {{ tag.name }}
                   </span>
                 </div>
                 <p v-if="location.address || location.city" class="mt-2 text-sm text-gray-600 dark:text-gray-400">

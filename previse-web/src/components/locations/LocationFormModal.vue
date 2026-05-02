@@ -9,6 +9,8 @@ import {
   type LocationItem,
   type LocationType,
 } from '@/services/locations'
+import { fetchLocationTags, syncLocationTags } from '@/services/locationTags'
+import TagPicker from './TagPicker.vue'
 import { useToastStore } from '@/stores/toast'
 
 interface Props {
@@ -43,6 +45,9 @@ const existingImageUrl = ref<string | null>(null)
 // Types
 const types = ref<LocationType[]>([])
 
+// Tags (ML2.3)
+const tagIds = ref<number[]>([])
+
 const loading = ref(false)
 const errors = ref<Record<string, string[]>>({})
 
@@ -67,6 +72,12 @@ onMounted(async () => {
     longitude.value = props.location.longitude
     description.value = props.location.description ?? ''
     existingImageUrl.value = props.location.image_url
+
+    // Tag-ek betöltése edit-nél
+    try {
+      const existing = await fetchLocationTags(props.location.id)
+      tagIds.value = existing.map((tg) => tg.id)
+    } catch { /* silent */ }
   }
 })
 
@@ -111,6 +122,11 @@ async function submit() {
     if (imageFile.value) {
       saved = await uploadLocationImage(saved.id, imageFile.value)
     }
+
+    // Címkék sync-elése (ML2.3) — minden esetben (új és edit is)
+    try {
+      await syncLocationTags(saved.id, tagIds.value)
+    } catch { /* silent: a fő mentés már sikerült */ }
 
     toast.success(isEdit.value ? t('locations.updated') : t('locations.created'))
     emit('saved', saved)
@@ -292,6 +308,14 @@ async function submit() {
             rows="3"
             class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500"
           ></textarea>
+        </div>
+
+        <!-- Tags (ML2.3) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            {{ t('locations.tags') }}
+          </label>
+          <TagPicker v-model="tagIds" />
         </div>
 
         <!-- Submit -->

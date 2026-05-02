@@ -103,6 +103,16 @@ class Location extends Model
             ->withPivot('assigned_at');
     }
 
+    /**
+     * Hozzárendelt címkék (ML2.3).
+     */
+    public function tags(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(LocationTag::class, 'location_tag_assignments', 'location_id', 'tag_id')
+            ->orderBy('location_tags.sort_order')
+            ->orderBy('location_tags.name');
+    }
+
     // ========== HELPER METÓDUSOK ==========
 
     public function isActive(): bool

@@ -20,4 +20,7 @@ return [
     'contact_deleted' => 'Contact deleted.',
     'responsible_invalid' => 'Invalid responsible selection.',
     'responsible_removed' => 'Responsible removed.',
+
+    // ML2.3 — Tags
+    'tag_deleted' => 'Tag deleted.',
 ];

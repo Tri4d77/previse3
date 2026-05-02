@@ -86,6 +86,7 @@ export default {
   common: {
     save: 'Save',
     cancel: 'Cancel',
+    close: 'Close',
     delete: 'Delete',
     edit: 'Edit',
     create: 'Create',
@@ -453,6 +454,23 @@ export default {
     rooms_sort_type: 'Type',
 
     // ML2.2 — Contacts
+    // ML2.3 — Tags
+    tags: 'Tags',
+    tags_section: 'Tag catalog',
+    tags_section_desc: 'Use these tags to mark locations (e.g. VIP, New, Inspection needed).',
+    tags_empty: 'No tags yet.',
+    tags_pick_placeholder: 'Pick tags…',
+    tags_all_selected: 'All tags selected.',
+    tags_manage: 'Manage tags',
+    tag_new: 'New tag',
+    tag_edit: 'Edit tag',
+    tag_name: 'Name',
+    tag_name_placeholder: 'e.g. VIP, New, Lift broken',
+    tag_color: 'Color',
+    tag_created: 'Tag created.',
+    tag_updated: 'Tag updated.',
+    tag_delete_confirm: 'Are you sure you want to delete tag "{name}"? Assignments will be removed too.',
+
     contacts_search_placeholder: 'Search by name, role, phone or e-mail…',
     rooms_search_placeholder: 'Search by name, number or type…',
     search_no_match: 'No matches found.',

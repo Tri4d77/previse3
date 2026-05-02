@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { LocationItem } from '@/services/locations'
+import { tagBadgeClass, type TagColor } from '@/services/locationTags'
 
 interface Props {
   location: LocationItem
@@ -87,6 +88,18 @@ const statusLabel = computed(() => {
         <p v-if="location.city || location.address" class="truncate">
           {{ [location.zip_code, location.city, location.address].filter(Boolean).join(', ') }}
         </p>
+      </div>
+
+      <!-- Címkék (ML2.3) -->
+      <div v-if="location.tags && location.tags.length" class="mt-2 flex flex-wrap gap-1">
+        <span
+          v-for="tag in location.tags"
+          :key="tag.id"
+          class="text-xs font-medium px-2 py-0.5 rounded-full"
+          :class="tagBadgeClass(tag.color as TagColor)"
+        >
+          {{ tag.name }}
+        </span>
       </div>
     </div>
   </div>

@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\FloorsController;
 use App\Http\Controllers\Api\LocationContactsController;
 use App\Http\Controllers\Api\LocationResponsiblesController;
+use App\Http\Controllers\Api\LocationTagsController;
+use App\Http\Controllers\Api\LocationTagAssignmentsController;
 use App\Http\Controllers\Api\LocationsController;
 use App\Http\Controllers\Api\RoomsController;
 use App\Http\Controllers\Api\RoomTypesController;
@@ -213,4 +215,15 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/locations/{location}/responsibles/available', [LocationResponsiblesController::class, 'available'])->name('locations.responsibles.available');
     Route::post('/locations/{location}/responsibles', [LocationResponsiblesController::class, 'store'])->name('locations.responsibles.store');
     Route::delete('/locations/{location}/responsibles/{membership}', [LocationResponsiblesController::class, 'destroy'])->name('locations.responsibles.destroy');
+
+    // --- Helyszín-címkék katalógus (ML2.3) ---
+    Route::get('/location-tags', [LocationTagsController::class, 'index'])->name('location-tags.index');
+    Route::post('/location-tags', [LocationTagsController::class, 'store'])->name('location-tags.store');
+    Route::post('/location-tags/reorder', [LocationTagsController::class, 'reorder'])->name('location-tags.reorder');
+    Route::put('/location-tags/{tag}', [LocationTagsController::class, 'update'])->name('location-tags.update');
+    Route::delete('/location-tags/{tag}', [LocationTagsController::class, 'destroy'])->name('location-tags.destroy');
+
+    // --- Helyszín ↔ címke hozzárendelés (ML2.3) ---
+    Route::get('/locations/{location}/tags', [LocationTagAssignmentsController::class, 'index'])->name('locations.tags.index');
+    Route::put('/locations/{location}/tags', [LocationTagAssignmentsController::class, 'sync'])->name('locations.tags.sync');
 });
