@@ -6,6 +6,8 @@ import { fetchLocation, type LocationItem } from '@/services/locations'
 import { useToastStore } from '@/stores/toast'
 import { useAuthStore } from '@/stores/auth'
 import FloorsTab from '@/components/locations/FloorsTab.vue'
+import ContactsTab from '@/components/locations/ContactsTab.vue'
+import ResponsiblesTab from '@/components/locations/ResponsiblesTab.vue'
 
 interface Props {
   id: number
@@ -26,13 +28,15 @@ const activeTab = ref<TabKey>('overview')
 const tabs: { key: TabKey; labelKey: string; available: boolean }[] = [
   { key: 'overview', labelKey: 'locations.tab_overview', available: true },
   { key: 'floors', labelKey: 'locations.tab_floors', available: true },
-  { key: 'contacts', labelKey: 'locations.tab_contacts', available: false },
-  { key: 'responsibles', labelKey: 'locations.tab_responsibles', available: false },
+  { key: 'contacts', labelKey: 'locations.tab_contacts', available: true },
+  { key: 'responsibles', labelKey: 'locations.tab_responsibles', available: true },
   { key: 'documents', labelKey: 'locations.tab_documents', available: false },
 ]
 
 const canManageFloors = computed(() => authStore.hasPermission('locations.manage_floors'))
 const canManageRooms = computed(() => authStore.hasPermission('locations.manage_rooms'))
+const canManageContacts = computed(() => authStore.hasPermission('locations.manage_contacts'))
+const canManageResponsibles = computed(() => authStore.hasPermission('locations.manage_responsibles'))
 
 async function loadLocation() {
   loading.value = true
@@ -204,6 +208,20 @@ onMounted(loadLocation)
         :location-id="location.id"
         :can-manage-floors="canManageFloors"
         :can-manage-rooms="canManageRooms"
+      />
+
+      <!-- Contacts tab -->
+      <ContactsTab
+        v-else-if="activeTab === 'contacts'"
+        :location-id="location.id"
+        :can-manage="canManageContacts"
+      />
+
+      <!-- Responsibles tab -->
+      <ResponsiblesTab
+        v-else-if="activeTab === 'responsibles'"
+        :location-id="location.id"
+        :can-manage="canManageResponsibles"
       />
     </template>
   </div>

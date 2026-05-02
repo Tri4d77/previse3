@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\FloorsController;
+use App\Http\Controllers\Api\LocationContactsController;
+use App\Http\Controllers\Api\LocationResponsiblesController;
 use App\Http\Controllers\Api\LocationsController;
 use App\Http\Controllers\Api\RoomsController;
 use App\Http\Controllers\Api\RoomTypesController;
@@ -198,4 +200,17 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/room-types', [RoomTypesController::class, 'store'])->name('room-types.store');
     Route::put('/room-types/{roomType}', [RoomTypesController::class, 'update'])->name('room-types.update');
     Route::delete('/room-types/{roomType}', [RoomTypesController::class, 'destroy'])->name('room-types.destroy');
+
+    // --- Helyszín-kontaktok (ML2.2) ---
+    Route::get('/locations/{location}/contacts', [LocationContactsController::class, 'index'])->name('locations.contacts.index');
+    Route::post('/locations/{location}/contacts', [LocationContactsController::class, 'store'])->name('locations.contacts.store');
+    Route::get('/locations/{location}/contact-roles', [LocationContactsController::class, 'rolesAutocomplete'])->name('locations.contact-roles');
+    Route::put('/location-contacts/{contact}', [LocationContactsController::class, 'update'])->name('location-contacts.update');
+    Route::delete('/location-contacts/{contact}', [LocationContactsController::class, 'destroy'])->name('location-contacts.destroy');
+
+    // --- Helyszín-felelősök (ML2.2) ---
+    Route::get('/locations/{location}/responsibles', [LocationResponsiblesController::class, 'index'])->name('locations.responsibles.index');
+    Route::get('/locations/{location}/responsibles/available', [LocationResponsiblesController::class, 'available'])->name('locations.responsibles.available');
+    Route::post('/locations/{location}/responsibles', [LocationResponsiblesController::class, 'store'])->name('locations.responsibles.store');
+    Route::delete('/locations/{location}/responsibles/{membership}', [LocationResponsiblesController::class, 'destroy'])->name('locations.responsibles.destroy');
 });

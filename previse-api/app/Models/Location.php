@@ -86,6 +86,23 @@ class Location extends Model
         return $this->hasMany(Room::class)->whereNull('floor_id');
     }
 
+    /**
+     * Külső kontaktok (ML2.2).
+     */
+    public function contacts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(LocationContact::class)->orderBy('sort_order')->orderBy('name');
+    }
+
+    /**
+     * Belső felelősök — a saját szervezet membership-jei (ML2.2).
+     */
+    public function responsibles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Membership::class, 'location_responsibles')
+            ->withPivot('assigned_at');
+    }
+
     // ========== HELPER METÓDUSOK ==========
 
     public function isActive(): bool

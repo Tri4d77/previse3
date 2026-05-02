@@ -15,4 +15,9 @@ return [
     'floor_invalid' => 'The selected floor does not belong to this location.',
     'floor_deleted' => 'Floor deleted.',
     'room_deleted' => 'Room deleted.',
+
+    // ML2.2 — Contacts + Responsibles
+    'contact_deleted' => 'Contact deleted.',
+    'responsible_invalid' => 'Invalid responsible selection.',
+    'responsible_removed' => 'Responsible removed.',
 ];

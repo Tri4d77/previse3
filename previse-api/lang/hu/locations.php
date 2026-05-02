@@ -15,4 +15,9 @@ return [
     'floor_invalid' => 'Az adott szint nem ehhez a helyszínhez tartozik.',
     'floor_deleted' => 'Szint törölve.',
     'room_deleted' => 'Helyiség törölve.',
+
+    // ML2.2 — Contacts + Responsibles
+    'contact_deleted' => 'Kontakt törölve.',
+    'responsible_invalid' => 'Érvénytelen felelős kiválasztás.',
+    'responsible_removed' => 'Felelős eltávolítva.',
 ];
